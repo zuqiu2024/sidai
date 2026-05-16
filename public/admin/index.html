@@ -179,10 +179,10 @@
                 const randomId = item.fileName.substring(8, 16).toUpperCase();
 
                 const gaodeUrl = `https://uri.amap.com/marker?position=${item.lon},${item.lat}&name=验证定位点`;
-                const googleUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lon}`;
+                const googleUrl = `https://www.google.com/maps?q=${item.lat},${item.lon}`;
 
-                // 核心修复：直接使用 B2 规范的 URL Query 传参进行鉴权下载，绕过浏览器的 fetch CORS 封锁限制
-                const directProtectedImgUrl = `${item.url}&Authorization=${encodeURIComponent(item.authToken)}`;
+                // 【核心修复】：不再强行组装未定义的 url 和 authToken，而是直接向新版 Worker 发起安全的 action=img 图片请求
+                const directProtectedImgUrl = `/submit?action=img&fileName=${encodeURIComponent(item.fileName)}&pw=${targetPw}`;
 
                 const card = document.createElement('div');
                 card.className = 'data-card';
