@@ -5,10 +5,10 @@ export async function onRequest(context) {
 
   if (request.method === "OPTIONS") return new Response(null, { status: 204 });
 
-  // ================= 模块一：可视化后台拉取数据列表 =================
-  if (url.pathname === "/submit" && request.method === "GET" && url.searchParams.get("action") !== "img") {
+  // ================= 模块一：可视化后台拉取数据接口 =================
+  if (url.pathname === "/submit" && request.method === "GET") {
     const password = url.searchParams.get("pw");
-    // 【安全防线】后台密码
+    // 【安全防线】请在 Cloudflare Pages 变量里设置 BACKEND_PW，或者直接对比你的自定义密码
     const correctPassword = env.BACKEND_PW || "521895"; 
 
     if (password !== correctPassword) {
@@ -39,12 +39,18 @@ export async function onRequest(context) {
         // 匹配 consent_时间戳_lat纬度_lon经度.jpg
         const match = name.match(/consent_(\d+)_lat([0-9.-]+)_lon([0-9.-]+)\.jpg/);
 
+        // 生成 B2 的安全下载链接
+        const downloadUrl = `${authData.downloadUrl}/b2api/v1/b2_download_file_by_id?fileId=${file.fileId}`;
+
         if (match) {
           return {
+            fileId: file.fileId,
             fileName: name,
             time: new Date(parseInt(match[1])).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }),
             lat: match[2],
-            lon: match[3]
+            lon: match[3],
+            url: downloadUrl,
+            authToken: authData.authorizationToken // 带上临时下载令牌
           };
         }
         return null;
@@ -113,49 +119,6 @@ export async function onRequest(context) {
       return new Response(JSON.stringify({ success: false, error: err.message }), {
         status: 500, headers: { "Content-Type": "application/json" }
       });
-    }
-  }
-
-  // ================= 模块三：图片安全中转 (自动申请临时授权并重定向) =================
-  if (url.pathname === "/submit" && request.method === "GET" && url.searchParams.get("action") === "img") {
-    const password = url.searchParams.get("pw");
-    const fileName = url.searchParams.get("fileName");
-    const correctPassword = env.BACKEND_PW || "521895";
-
-    if (password !== correctPassword) return new Response("Forbidden", { status: 403 });
-    if (!fileName) return new Response("Missing filename", { status: 400 });
-
-    try {
-      // 1. 认证 B2
-      const b2AuthToken = btoa(`${env.B2_APPLICATION_KEY_ID}:${env.B2_APPLICATION_KEY}`);
-      const authRes = await fetch("https://api.backblazeb2.com/b2api/v2/b2_authorize_account", {
-        headers: { "Authorization": `Basic ${b2AuthToken}` }
-      });
-      const authData = await authRes.json();
-
-      // 2. 申请针对特定文件的下载授权（1小时内有效）
-      const dlAuthRes = await fetch(`${authData.apiUrl}/b2api/v2/b2_get_download_authorization`, {
-        method: "POST",
-        headers: { "Authorization": authData.authorizationToken, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bucketId: env.B2_BUCKET_ID,
-          fileNamePrefix: fileName,
-          validDurationInSeconds: 3600 
-        })
-      });
-      const dlAuthData = await dlAuthRes.json();
-
-      if (!dlAuthData.authorizationToken) {
-         throw new Error("Failed to get download authorization");
-      }
-
-      // 3. 拼接带合法鉴权的 B2 直链，并 302 重定向过去
-      const bucketName = env.B2_BUCKET_NAME || "parent-monitor-consent";
-      const b2DirectUrl = `${authData.downloadUrl}/file/${bucketName}/${encodeURIComponent(fileName)}?Authorization=${dlAuthData.authorizationToken}`;
-
-      return Response.redirect(b2DirectUrl, 302);
-    } catch (err) {
-      return new Response(err.message, { status: 500 });
     }
   }
 
