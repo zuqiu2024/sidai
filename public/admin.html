@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>监护数据管理后台</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #f3f4f6; margin: 0; padding: 20px; color: #374151; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { font-size: 24px; color: #111827; margin-bottom: 20px; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 15px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; }
+        .info { flex: 1; min-width: 250px; }
+        .time { font-weight: bold; font-size: 16px; color: #1f2937; }
+        .gps { font-size: 13px; color: #6b7280; margin-top: 5px; }
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        a, button { text-decoration: none; padding: 8px 14px; font-size: 13px; border-radius: 6px; font-weight: 500; cursor: pointer; border: none; }
+        .btn-view { background: #3b82f6; color: white; }
+        .btn-gaode { background: #10b981; color: white; }
+        .btn-google { background: #ea4335; color: white; }
+        #loading { text-align: center; font-size: 16px; color: #6b7280; padding: 40px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📊 监护数据实时看板</h1>
+    <div id="loading">正在拉取加密存储数据...</div>
+    <div id="list"></div>
+</div>
+
+<script>
+    // 从当前 URL 链接里获取暗号密码：?pw=xxxx
+    const params = new URLSearchParams(window.location.search);
+    const pw = params.get('pw') || '';
+
+    if (!pw) {
+        document.getElementById('loading').innerHTML = "<b style='color:#ef4444'>错误：未授权。请在网址后面加上 ?pw=你的密码</b>";
+    } else {
+        fetchData();
+    }
+
+    async function fetchData() {
+        try {
+            const res = await fetch(`/submit?pw=${pw}`);
+            const result = await res.json();
+            
+            if (!res.ok) throw new Error(result.error || "获取失败");
+            
+            document.getElementById('loading').style.display = 'none';
+            const listDiv = document.getElementById('list');
+            
+            if (result.data.length === 0) {
+                listDiv.innerHTML = "<p>目前桶内还没有任何监护存档记录。</p>";
+                return;
+            }
+
+            result.data.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                
+                // 地图跳转链接
+                const gaodeUrl = `https://uri.amap.com/marker?position=${item.lon},${item.lat}&name=孩子当前位置`;
+                const googleUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lon}`;
+
+                card.innerHTML = `
+                    <div class="info">
+                        <div class="time">🕒 同步时间：${item.time}</div>
+                        <div class="gps">📍 坐标：${item.lat}, ${item.lon} ${item.lat === "0.0" ? '(IP粗略定位)' : '(GPS精准定位)'}</div>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn-view" onclick="downloadImage('${item.url}', '${item.authToken}', '${item.fileName}')">📥 下载/看图</button>
+                        <a class="btn-gaode" href="${gaodeUrl}" target="_blank">🗺️ 高德地图</a>
+                        <a class="btn-google" href="${googleUrl}" target="_blank">🌐 Google地图</a>
+                    </div>
+                `;
+                listDiv.appendChild(card);
+            });
+
+        } catch (err) {
+            document.getElementById('loading').innerHTML = `<b style='color:#ef4444'>加载失败: ${err.message}</b>`;
+        }
+    }
+
+    // 处理带 B2 Token 的安全下载/看图
+    async function downloadImage(url, token, filename) {
+        try {
+            const res = await fetch(url, { headers: { "Authorization": token } });
+            const blob = await res.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            
+            // 手机端直接触发下载/预览
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (e) {
+            alert("图片下载失败: " + e.message);
+        }
+    }
+</script>
+</body>
+</html>
