@@ -9,7 +9,7 @@ export async function onRequest(context) {
   if (url.pathname === "/submit" && request.method === "GET") {
     const password = url.searchParams.get("pw");
     // 【安全防线】请在 Cloudflare Pages 变量里设置 BACKEND_PW，或者直接对比你的自定义密码
-    const correctPassword = env.BACKEND_PW || "admin123456"; 
+    const correctPassword = env.BACKEND_PW || "521895"; 
     
     if (password !== correctPassword) {
       return new Response(JSON.stringify({ success: false, error: "暗号错误，拒绝访问" }), {
