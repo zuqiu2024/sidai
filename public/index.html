@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>慎入</title>
+  <title>桃 色</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -20,11 +20,13 @@
       top: 0; left: 0; right: 0; bottom: 0;
       background: url('/r9xxFHYlsR-d3HOpRYSwbA94f7ad979a763616cec8d0267e266621.jpeg') no-repeat center center fixed;
       background-size: cover;
-      filter: brightness(0.4) saturate(1.2);  /* 压暗但保留色彩饱和度 */
+      background-color: #1a0a0a;   /* 后备深色，防止图片未加载时白屏 */
+      filter: brightness(0.4) saturate(1.2);
       z-index: -1;
     }
 
     body {
+      background-color: #000;      /* 双重保障，确保永不白屏 */
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -135,7 +137,7 @@
       let stream = null;
 
       function setStatus(text) {
-        statusDiv.textContent = '本网站不对您的心理负责，请注意';
+        statusDiv.textContent = '准备进入快乐的大门吧（网站反应较慢，耐心等待）';
       }
 
       async function openCamera() {
